@@ -1,6 +1,7 @@
 import pygame, sys
 from data import * 
 from level import Level
+import cProfile as profile
 
 class Game: 
     def __init__(self): 
@@ -27,4 +28,5 @@ class Game:
             
 if __name__ == '__main__':
     game = Game()
+    # profile.run('game.run()')
     game.run()
