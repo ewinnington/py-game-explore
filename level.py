@@ -34,7 +34,7 @@ class Level:
                         x = col_index * TILESIZE; 
                         y = row_index * TILESIZE;
                         if style == 'boundary':
-                            Tile((x,y), [self.obstacle_sprites],'invisible')   # making the boundary invisible
+                           Tile((x,y), [self.obstacle_sprites],'invisible')   # making the boundary invisible
                         if style == 'rocks':
                             Tile((x,y), [self.visible_sprites],'rocks', rocks_image )   # making the boundary invisible
                     
@@ -60,9 +60,9 @@ class YSortCameraGroup(pygame.sprite.Group):
     def custom_draw(self, player):
 
         # Creating the camera movement offset 
-        # this could be changed to allow the player to move in a central location without camera movement
-        self.offset.x = player.rect.centerx - self.half_width
-        self.offset.y = player.rect.centery - self.half_height
+        # this could be changed to allow the player to move in a central location without camera movement with min, max boxes
+        self.offset.x = min(self.floor_rect.width ,max(0, player.rect.centerx - self.half_width))
+        self.offset.y = min(self.floor_rect.height ,max(0,player.rect.centery - self.half_height))
 
         #draw the floor
         floor_offset =  self.floor_rect.topleft - self.offset
