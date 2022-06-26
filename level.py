@@ -1,9 +1,10 @@
 import pygame
 import os
+import random
 from data import *
 from tile import Tile
 from player import Player
-from support import import_csv_layout
+from support import *
 
 class Level:
     def __init__(self):
@@ -20,12 +21,15 @@ class Level:
     def create_map(self):
         layout = {
             'boundary': import_csv_layout(os.path.join('maps','boundary_1.csv')),
-            'rocks': import_csv_layout(os.path.join('maps','boundary_1.csv')),
+            'rocks':    import_csv_layout(os.path.join('maps','boundary_1.csv')),
+            'grass':    import_csv_layout(os.path.join('maps','grass_1.csv')),
+            'object':   import_csv_layout(os.path.join('maps','object_1.csv')),
         }
 
-        # change from video - create rock sprites so I can keep following
-        rocks_image = pygame.image.load(os.path.join('sprites','rock.png')).convert_alpha()
-        rocks_image.set_colorkey(COLORKEY)
+        graphics = {
+            'grass':   import_folder(os.path.join('sprites','grass')),
+            'objects': import_folder(os.path.join('sprites','objects')),
+        }
 
         for style,layout in layout.items():
             for row_index,row in enumerate(layout):
@@ -36,9 +40,20 @@ class Level:
                         if style == 'boundary':
                            Tile((x,y), [self.obstacle_sprites],'invisible')   # making the boundary invisible
                         if style == 'rocks':
+                             # change from video - create rock sprites so I can keep following
+                            rocks_image = pygame.image.load(os.path.join('sprites','rock.png')).convert_alpha()
+                            rocks_image.set_colorkey(COLORKEY)
                             Tile((x,y), [self.visible_sprites],'rocks', rocks_image )   # making the boundary invisible
+                        if style == 'grass':
+                            # Grass image
+                            random_grass_image = random.choice(graphics['grass'])
+                            Tile((x,y), [self.visible_sprites,self.obstacle_sprites],'grass', random_grass_image)   # making the boundary invisible
+                        if style == 'object':
+                            # Object image
+                            object_image = graphics['objects'][int(col)]
+                            Tile((x,y), [self.visible_sprites],'object',object_image)   # making the boundary invisible
                     
-        self.player = Player((100,100), [self.visible_sprites], self.obstacle_sprites)
+        self.player = Player((100,200), [self.visible_sprites], self.obstacle_sprites)
 
     def run(self):
         self.visible_sprites.custom_draw(self.player)
