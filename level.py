@@ -10,7 +10,7 @@ class Level:
         self.display_surface = pygame.display.get_surface()
 
         # setup sprite groups
-        self.visible_sprites = pygame.sprite.Group()
+        self.visible_sprites = YSortCameraGroup()
         self.obstacle_sprites = pygame.sprite.Group()
 
         # create the map
@@ -24,8 +24,29 @@ class Level:
                 if col == 'X':
                     Tile((x,y), [self.visible_sprites, self.obstacle_sprites])
                 if col == 'p':
-                    Player((x,y), [self.visible_sprites], self.obstacle_sprites)
+                    self.player = Player((x,y), [self.visible_sprites], self.obstacle_sprites)
 
     def run(self):
-        self.visible_sprites.draw(self.display_surface)
+        self.visible_sprites.custom_draw(self.player)
         self.visible_sprites.update()
+
+
+class YSortCameraGroup(pygame.sprite.Group):
+    def __init__(self):
+        super().__init__()
+        self.display_surface = pygame.display.get_surface()
+        self.half_height = self.display_surface.get_height() // 2
+        self.half_width = self.display_surface.get_width() // 2
+        self.offset = pygame.math.Vector2(0,0)
+
+    def custom_draw(self, player):
+
+        # Creating the camera movement offset 
+        # this could be changed to allow the player to move in a central location without camera movement
+        self.offset.x = player.rect.centerx - self.half_width
+        self.offset.y = player.rect.centery - self.half_height
+
+        #for sprite in self.sprites():
+        for sprite in sorted(self.sprites(), key = lambda sprite: sprite.rect.centery):
+            offset_pos = sprite.rect.topleft - self.offset
+            self.display_surface.blit(sprite.image, offset_pos)

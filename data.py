@@ -4,6 +4,7 @@ HEIGHT = 720
 FPS = 60
 TILESIZE = 64
 CAPTION = "DemoBlade"
+PLAYER_SPEED = 16
 
 WORLD_MAP = [
 ['X','X','X','X','X','X','X','X','X','X','X','X','X','X','X','X','X','X','X','X'],

@@ -9,3 +9,4 @@ class Tile(pygame.sprite.Sprite):
         self.image = pygame.image.load(os.path.join('sprites','rock.png')).convert_alpha()
         self.image.set_colorkey(colorkey)
         self.rect = self.image.get_rect(topleft=pos)
+        self.hitbox = self.rect.inflate(0,-8) # allow 8px overlap on vertical
