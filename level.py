@@ -1,5 +1,5 @@
-from data import WORLD_MAP
 import pygame
+import os
 from data import *
 from tile import Tile
 from player import Player
@@ -39,12 +39,20 @@ class YSortCameraGroup(pygame.sprite.Group):
         self.half_width = self.display_surface.get_width() // 2
         self.offset = pygame.math.Vector2(0,0)
 
+        #creating the floor 
+        self.floor_surf = pygame.image.load(os.path.join('sprites','landscape_grass.png')).convert()
+        self.floor_rect = self.floor_surf.get_rect(topleft = (0,0))
+
     def custom_draw(self, player):
 
         # Creating the camera movement offset 
         # this could be changed to allow the player to move in a central location without camera movement
         self.offset.x = player.rect.centerx - self.half_width
         self.offset.y = player.rect.centery - self.half_height
+
+        #draw the floor
+        floor_offset =  self.floor_rect.topleft - self.offset
+        self.display_surface.blit(self.floor_surf, floor_offset)
 
         #for sprite in self.sprites():
         for sprite in sorted(self.sprites(), key = lambda sprite: sprite.rect.centery):
