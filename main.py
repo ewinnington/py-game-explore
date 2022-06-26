@@ -1,7 +1,6 @@
-from ast import While
 import pygame, sys
 from data import * 
-from level import level
+from level import Level
 
 class Game: 
     def __init__(self): 
@@ -12,7 +11,7 @@ class Game:
         pygame.display.set_caption(CAPTION)
         self.clock = pygame.time.Clock()
 
-        self.level = level()
+        self.level = Level()
 
     def run(self):
         while True:
@@ -21,7 +20,7 @@ class Game:
                     pygame.quit()
                     sys.exit()
 
-            self.screen.fill('black')
+            self.screen.fill('dark green')
             self.level.run()	
             pygame.display.update()
             self.clock.tick(FPS)
