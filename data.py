@@ -4,7 +4,7 @@ HEIGHT = 720
 FPS = 60
 TILESIZE = 64
 CAPTION = "DemoBlade"
-PLAYER_SPEED = 16
+PLAYER_SPEED = 12
 COLORKEY = (255,0,255) # (255,0,255) is a color that will be transparent in the image, famous magenta
 
 WORLD_MAP = [
