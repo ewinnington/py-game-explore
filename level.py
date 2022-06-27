@@ -50,8 +50,14 @@ class Level:
                             Tile((x,y), [self.visible_sprites,self.obstacle_sprites],'grass', random_grass_image)   # making the boundary invisible
                         if style == 'object':
                             # Object image
+                            
                             object_image = graphics['objects'][int(col)]
-                            Tile((x,y), [self.visible_sprites],'object',object_image)   # making the boundary invisible
+                            if (int(col)==1) :
+                                objectType = 'sceneryObject' #scenery object can be 64x128 and is impassable
+                                Tile((x,y), [self.visible_sprites,self.obstacle_sprites],objectType,object_image)   
+                            else: 
+                                objectType = 'object'
+                                Tile((x,y), [self.visible_sprites],objectType,object_image)   # objects are passable
                     
         self.player = Player((100,200), [self.visible_sprites], self.obstacle_sprites)
 
