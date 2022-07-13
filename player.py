@@ -3,12 +3,16 @@ import os
 from data import *
 from support import *
 
+weapon_data = {
+    'sword': { 'cooldown':100, 'damage':10, 'graphic': pygame.image.load(os.path.join('sprites','weapons','sword','full.png')) },
+    'spear': { 'cooldown':120, 'damage':10, 'graphic': pygame.image.load(os.path.join('sprites','weapons','spear','full.png')) },
+}
+
 class Player(pygame.sprite.Sprite):
-    def __init__(self,pos,groups, obstacle_sprites):
+    def __init__(self,pos,groups, obstacle_sprites,create_attack,destroy_weapon):
         super().__init__(groups)
-        colorkey = (255,0,255)
         self.image = pygame.image.load(os.path.join('sprites','player.png')).convert_alpha()
-        self.image.set_colorkey(colorkey)
+        self.image.set_colorkey(COLORKEY)
         self.rect = self.image.get_rect(topleft=pos)
         self.hitbox = self.rect.inflate(0,-14) # allow 8px overlap on vertical
 
@@ -24,10 +28,16 @@ class Player(pygame.sprite.Sprite):
         self.attacking = False
         self.attack_cooldown = 400
         self.attack_time = None
-
+        
         self.obstacle_sprites = obstacle_sprites
 
-
+        self.create_attack = create_attack
+        self.destroy_weapon = destroy_weapon
+        self.weapon_index = 0
+        self.weapon = list(weapon_data.keys())[self.weapon_index]
+        self.can_switch_weapon = True
+        self.weapon_switch_time = None
+        self.switch_duration_cooldown = 200
 
     def import_player_assets(self):
         character_path = os.path.join('sprites','player')
@@ -94,13 +104,22 @@ class Player(pygame.sprite.Sprite):
             if keys[pygame.K_SPACE] and not self.attacking:
                 self.attacking = True
                 self.attack_time =  pygame.time.get_ticks()
-                print('attack')
+                self.create_attack()
 
             #magic input
             if keys[pygame.K_LCTRL] and not self.attacking:
                 self.attacking = True
                 self.attack_time =  pygame.time.get_ticks()
                 print('magic')
+
+            if keys[pygame.K_RCTRL] and not self.attacking and self.can_switch_weapon:
+                self.can_switch_weapon = False
+                self.weapon_switch_time = pygame.time.get_ticks()
+                self.weapon_index += 1
+                if self.weapon_index >= len(weapon_data):
+                    self.weapon_index = 0
+                self.weapon = list(weapon_data.keys())[self.weapon_index]
+
         
     def cooldown(self):
         current_time = pygame.time.get_ticks()
@@ -108,6 +127,11 @@ class Player(pygame.sprite.Sprite):
             if (current_time - self.attack_time) > self.attack_cooldown:
                 self.attacking = False
                 self.attack_time = None
+                self.destroy_weapon()
+        if not self.can_switch_weapon:
+            if (current_time - self.weapon_switch_time) > self.switch_duration_cooldown:
+                self.can_switch_weapon = True
+                self.weapon_switch_time = None
 
     def move(self, speed):
         if self.direction.magnitude() != 0:
