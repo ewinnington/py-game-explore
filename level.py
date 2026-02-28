@@ -6,9 +6,11 @@ from tile import Tile
 from player import Player
 from support import *
 from weapon import Weapon
+from player import weapon_data
 from enemy import Enemy
 from magic import FireCone, IceBall, ShadowBlade
 from spawner import CaveSpawner
+from hud import HUD
 
 class Level:
     def __init__(self):
@@ -23,6 +25,9 @@ class Level:
 
         # attack sprites
         self.current_attack = None
+
+        # HUD
+        self.hud = HUD()
 
         # create the map
         self.create_map()
@@ -119,17 +124,19 @@ class Level:
         )
 
     def _check_weapon_hits(self):
-        """Kill enemies struck by the player's weapon."""
+        """Damage enemies struck by the player's weapon."""
         if not self.current_attack:
             return
         for enemy in self.enemy_sprites:
             if enemy.state == enemy.DYING:
                 continue
             if self.current_attack.rect.colliderect(enemy.hitbox):
-                enemy.take_hit()
+                weapon_dmg = weapon_data.get(self.player.weapon, {}).get('damage', 10)
+                enemy.take_hit(weapon_dmg)
 
     def _check_magic_hits(self):
-        """Kill enemies struck by magic projectiles."""
+        """Damage enemies struck by magic projectiles."""
+        from magic import magic_data as _md
         for spell in list(self.magic_sprites):
             for enemy in self.enemy_sprites:
                 if enemy.state == enemy.DYING:
@@ -137,7 +144,9 @@ class Level:
                 if id(enemy) in spell.hit_enemies:
                     continue
                 if spell.hitbox.colliderect(enemy.hitbox):
-                    enemy.take_hit()
+                    spell_key = getattr(spell, 'spell_key', None)
+                    dmg = _md.get(spell_key, {}).get('damage', 15) if spell_key else 15
+                    enemy.take_hit(dmg)
                     spell.hit_enemies.add(id(enemy))
                     if not spell.piercing:
                         spell.kill()
@@ -162,6 +171,9 @@ class Level:
                 self.player.rect.centery - offset.y,
             )
             menu.draw(self.display_surface, screen_center)
+
+        # HUD always on top
+        self.hud.draw(self.player)
 
 
 class YSortCameraGroup(pygame.sprite.Group):

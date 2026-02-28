@@ -63,6 +63,22 @@ class Player(pygame.sprite.Sprite):
         self.magic = 'fire_cone'
         self.casting_magic = False
 
+        # --- Hero Stats ---
+        self.level = 1
+        self.xp = 0
+        self.xp_to_next = 20          # XP needed for next level
+        self.max_hp = 50
+        self.hp = self.max_hp
+        self.max_mp = 10
+        self.mp = self.max_mp
+        self.mp_regen_rate = 0.8       # MP per second
+        self._mp_regen_accum = 0.0     # fractional MP accumulator
+        self.alive_flag = True         # False when HP <= 0
+        self.death_timer = 0
+        self.death_duration = 90       # frames for death animation (~1.5s)
+        self.kills = 0                 # total kill count
+        self.kill_counts = {}          # per-type kill counts e.g. {'demon': 3}
+
         # --- Knockback (enemy bump) ---
         self.knockback_dir = pygame.math.Vector2(0, 0)
         self.knockback_timer = 0        # frames remaining
@@ -72,18 +88,15 @@ class Player(pygame.sprite.Sprite):
         self.knockback_invuln_time = 36 # frames (~0.6 s)
 
         # --- Circular ring menu (Secret of Mana style) ---
+        # Start with only sword; other items found as runes
         menu_items = [
-            {'name': 'Sword',        'icon': weapon_data['sword']['graphic'], 'weapon_key': 'sword'},
-            {'name': 'Spear',        'icon': weapon_data['spear']['graphic'], 'weapon_key': 'spear'},
-            {'name': 'Fire Cone',    'icon': magic_data['fire_cone']['icon'],    'magic_key': 'fire_cone'},
-            {'name': 'Ice Ball',     'icon': magic_data['ice_ball']['icon'],     'magic_key': 'ice_ball'},
-            {'name': 'Shadow Blade', 'icon': magic_data['shadow_blade']['icon'], 'magic_key': 'shadow_blade'},
+            {'name': 'Sword', 'icon': weapon_data['sword']['graphic'], 'weapon_key': 'sword'},
         ]
         self.circular_menu = CircularMenu(items=menu_items, radius=80)
-        self.circular_menu.item_pool = [
-            {'name': 'Shield', 'icon': _make_placeholder_icon('Shield', (70, 95, 170))},
-            {'name': 'Potion', 'icon': _make_placeholder_icon('Potion', (55, 150, 75))},
-        ]
+        self.circular_menu.item_pool = []
+
+        # Track which runes have been collected
+        self.collected_runes = set()  # e.g. {'spear', 'fire_cone', ...}
 
     def import_player_assets(self):
         character_path = os.path.join('sprites','player')
@@ -207,12 +220,15 @@ class Player(pygame.sprite.Sprite):
                 self.attack_time =  pygame.time.get_ticks()
                 self.create_attack()
 
-            #magic input – cast the spell selected in the ring menu
+            #magic input – cast the spell selected in the ring menu (costs MP)
             if keys[pygame.K_LCTRL] and not self.attacking:
-                self.attacking = True
-                self.casting_magic = True
-                self.attack_time = pygame.time.get_ticks()
-                self.create_magic()
+                mp_cost = magic_data.get(self.magic, {}).get('mp_cost', 0)
+                if self.mp >= mp_cost:
+                    self.mp -= mp_cost
+                    self.attacking = True
+                    self.casting_magic = True
+                    self.attack_time = pygame.time.get_ticks()
+                    self.create_magic()
 
             if keys[pygame.K_RCTRL] and not self.attacking and self.can_switch_weapon:
                 self.can_switch_weapon = False
@@ -269,10 +285,54 @@ class Player(pygame.sprite.Sprite):
                     if self.direction.y < 0: #moving up & colliding
                         self.hitbox.top = sprite.hitbox.bottom
 
+    def take_damage(self, amount):
+        """Reduce HP by amount. Called when enemy bumps player."""
+        if self.knockback_invuln > 0 or not self.alive_flag:
+            return
+        self.hp = max(0, self.hp - amount)
+        if self.hp <= 0:
+            self.alive_flag = False
+            self.death_timer = 0
+
+    def heal(self, amount):
+        """Restore HP up to max."""
+        self.hp = min(self.max_hp, self.hp + amount)
+
+    def gain_xp(self, amount, enemy_type='unknown'):
+        """Add XP from a kill, check for level up."""
+        self.xp += amount
+        self.kills += 1
+        self.kill_counts[enemy_type] = self.kill_counts.get(enemy_type, 0) + 1
+        while self.xp >= self.xp_to_next:
+            self._level_up()
+
+    def _level_up(self):
+        """Increase level, boost max HP and MP."""
+        self.xp -= self.xp_to_next
+        self.level += 1
+        self.xp_to_next = int(self.xp_to_next * 1.5)
+        # Stat gains per level
+        hp_gain = 10
+        mp_gain = 3
+        self.max_hp += hp_gain
+        self.hp = self.max_hp  # full heal on level up
+        self.max_mp += mp_gain
+        self.mp = self.max_mp  # full MP restore on level up
+        print(f"LEVEL UP! Now level {self.level} (HP:{self.max_hp} MP:{self.max_mp})")
+
+    def _regen_mp(self, dt):
+        """Regenerate MP over time."""
+        if self.mp < self.max_mp:
+            self._mp_regen_accum += self.mp_regen_rate * dt
+            if self._mp_regen_accum >= 1.0:
+                restore = int(self._mp_regen_accum)
+                self.mp = min(self.max_mp, self.mp + restore)
+                self._mp_regen_accum -= restore
+
     def apply_knockback(self, direction):
         """Push the player away (called by Enemy on contact)."""
-        if self.knockback_invuln > 0:
-            return  # still invincible
+        if self.knockback_invuln > 0 or not self.alive_flag:
+            return  # still invincible or dead
         self.knockback_dir = direction
         self.knockback_timer = self.knockback_duration
         self.knockback_invuln = self.knockback_invuln_time
@@ -290,10 +350,18 @@ class Player(pygame.sprite.Sprite):
             self.knockback_invuln -= 1
 
     def update(self):
+        if not self.alive_flag:
+            self.death_timer += 1
+            # Fade out during death
+            alpha = max(0, 255 - int(255 * self.death_timer / self.death_duration))
+            self.image.set_alpha(alpha)
+            return
+
         self.input()
         self.cooldown()
         self.get_status()
         self.animate()
         self.move(self.speed)
         self._process_knockback()
+        self._regen_mp(1.0 / FPS)
         self.circular_menu.update()

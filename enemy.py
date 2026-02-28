@@ -21,6 +21,12 @@ class Enemy(pygame.sprite.Sprite):
     REST = 3
     DYING = 4
 
+    # Per-type stats
+    ENEMY_TYPE = 'demon'
+    MAX_HP = 2
+    CONTACT_DAMAGE = 8
+    XP_VALUE = 5
+
     def __init__(self, pos, groups, obstacle_sprites, player):
         super().__init__(groups)
 
@@ -33,6 +39,9 @@ class Enemy(pygame.sprite.Sprite):
         self.image = self.animations[self.status][0]
         self.rect = self.image.get_rect(topleft=pos)
         self.hitbox = self.rect.inflate(-12, -18)
+
+        # HP
+        self.hp = self.MAX_HP
 
         # Movement
         self.direction = pygame.math.Vector2(0, 0)
@@ -64,6 +73,9 @@ class Enemy(pygame.sprite.Sprite):
         # Death
         self.death_timer = 0
         self.death_duration = 25      # frames (~0.4 s at 60 fps)
+
+        # Hit flash
+        self._hit_flash = 0
 
         # Notice indicator
         self._excl_font = pygame.font.Font(None, 28)
@@ -144,15 +156,21 @@ class Enemy(pygame.sprite.Sprite):
     # Combat
     # ------------------------------------------------------------------
 
-    def take_hit(self):
-        """One-hit kill."""
-        if self.state != self.DYING:
+    def take_hit(self, damage=1):
+        """Reduce HP; die when HP reaches 0."""
+        if self.state == self.DYING:
+            return
+        self.hp -= damage
+        if self.hp <= 0:
             self._enter_state(self.DYING)
             self.death_timer = 0
-            print("Enemy defeated!")
+            self.player.gain_xp(self.XP_VALUE, self.ENEMY_TYPE)
+        else:
+            # Flash white briefly (handled in _animate)
+            self._hit_flash = 6  # frames of flash
 
     def check_player_collision(self):
-        """Bump the player sideways on contact."""
+        """Bump the player sideways on contact and deal damage."""
         if self.state == self.DYING:
             return
         if not self.hitbox.colliderect(self.player.hitbox):
@@ -161,6 +179,7 @@ class Enemy(pygame.sprite.Sprite):
         dy = self.player.rect.centery - self.rect.centery
         bump = pygame.math.Vector2(dx, dy)
         bump = bump.normalize() if bump.length() > 0 else pygame.math.Vector2(1, 0)
+        self.player.take_damage(self.CONTACT_DAMAGE)
         self.player.apply_knockback(bump)
 
     # ------------------------------------------------------------------
@@ -228,6 +247,13 @@ class Enemy(pygame.sprite.Sprite):
             h = max(1, int(self.image.get_height() * scale))
             self.image = pygame.transform.scale(self.image.copy(), (w, h))
             self.image.set_alpha(alpha)
+
+        # Hit flash: tint white briefly when damaged but not dead
+        if self._hit_flash > 0:
+            self._hit_flash -= 1
+            flash_surf = self.image.copy()
+            flash_surf.fill((255, 255, 255, 120), special_flags=pygame.BLEND_RGBA_ADD)
+            self.image = flash_surf
 
         self.rect = self.image.get_rect(center=self.hitbox.center)
 

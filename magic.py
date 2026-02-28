@@ -7,9 +7,9 @@ import random
 # Spell data  (cooldown = how long the player is locked after casting)
 # ======================================================================
 magic_data = {
-    'fire_cone':    {'cooldown': 400, 'damage': 15},
-    'ice_ball':     {'cooldown': 300, 'damage': 20},
-    'shadow_blade': {'cooldown': 350, 'damage': 25},
+    'fire_cone':    {'cooldown': 400, 'damage': 15, 'mp_cost': 2},
+    'ice_ball':     {'cooldown': 300, 'damage': 20, 'mp_cost': 4},
+    'shadow_blade': {'cooldown': 350, 'damage': 25, 'mp_cost': 5},
 }
 
 
@@ -22,6 +22,7 @@ class FireCone(pygame.sprite.Sprite):
 
     def __init__(self, player, groups):
         super().__init__(groups)
+        self.spell_key = 'fire_cone'
         self.direction = player.status.split('_')[0]
         self.player = player
         self.lifetime = 30       # frames
@@ -110,6 +111,7 @@ class IceBall(pygame.sprite.Sprite):
 
     def __init__(self, player, groups):
         super().__init__(groups)
+        self.spell_key = 'ice_ball'
         dstr = player.status.split('_')[0]
         self.velocity = pygame.math.Vector2(_DIR_VEC.get(dstr, (0, 1)))
         self.speed = 14
@@ -161,6 +163,7 @@ class ShadowBlade(pygame.sprite.Sprite):
 
     def __init__(self, player, groups, enemy_sprites):
         super().__init__(groups)
+        self.spell_key = 'shadow_blade'
         self.enemy_sprites = enemy_sprites
         dstr = player.status.split('_')[0]
         self.velocity = pygame.math.Vector2(_DIR_VEC.get(dstr, (0, 1)))
