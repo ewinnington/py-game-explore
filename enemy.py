@@ -193,6 +193,10 @@ class Enemy(pygame.sprite.Sprite):
         self._collision('horizontal')
         self.hitbox.y += self.direction.y * speed
         self._collision('vertical')
+        # Safety clamp to world boundaries
+        margin = TILESIZE
+        self.hitbox.clamp_ip(pygame.Rect(margin, margin, 20 * TILESIZE - 2 * margin,
+                                          19 * TILESIZE - 2 * margin))
         self.rect.center = self.hitbox.center
 
     def _collision(self, axis):

@@ -35,6 +35,13 @@ class GameState:
         # Prevent input bounce
         self._last_key_time = 0
 
+        # Gamepad
+        pygame.joystick.init()
+        self._joystick = None
+        if pygame.joystick.get_count() > 0:
+            self._joystick = pygame.joystick.Joystick(0)
+            self._joystick.init()
+
     def _start_level(self, level_index):
         """Initialize a level from LEVELS data."""
         self.current_level_index = level_index
@@ -78,7 +85,7 @@ class GameState:
         # Prompt (blinking)
         tick = pygame.time.get_ticks()
         if (tick // 600) % 2 == 0:
-            prompt = self._prompt_font.render("Press SPACE to begin", True, (200, 200, 180))
+            prompt = self._prompt_font.render("Press SPACE or A to begin", True, (200, 200, 180))
             self.display_surface.blit(prompt,
                 prompt.get_rect(center=(WIDTH // 2, HEIGHT * 2 // 3)))
 
@@ -86,6 +93,7 @@ class GameState:
         hints = [
             "Arrow keys: Move    Space: Attack    LCtrl: Cast spell",
             "TAB: Open ring menu    UP/DOWN: Switch rings    LEFT/RIGHT: Navigate",
+            "Gamepad: Stick/D-pad: Move  A: Attack  B: Magic  X: Menu  Y: Select",
         ]
         for i, h in enumerate(hints):
             ht = self._prompt_font.render(h, True, (120, 110, 100))
@@ -95,10 +103,7 @@ class GameState:
         # Decorative border
         self._draw_border((180, 150, 80))
 
-        keys = pygame.key.get_pressed()
-        now = pygame.time.get_ticks()
-        if keys[pygame.K_SPACE] and now - self._last_key_time > 300:
-            self._last_key_time = now
+        if self._confirm_pressed():
             self._start_level(0)
 
         return True
@@ -190,10 +195,7 @@ class GameState:
 
         self._draw_border((120, 30, 30))
 
-        keys = pygame.key.get_pressed()
-        now = pygame.time.get_ticks()
-        if keys[pygame.K_SPACE] and now - self._last_key_time > 300:
-            self._last_key_time = now
+        if self._confirm_pressed():
             self.player = None
             self.state = self.TITLE
 
@@ -238,10 +240,7 @@ class GameState:
 
         self._draw_border((80, 140, 200))
 
-        keys = pygame.key.get_pressed()
-        now = pygame.time.get_ticks()
-        if keys[pygame.K_SPACE] and now - self._last_key_time > 300:
-            self._last_key_time = now
+        if self._confirm_pressed():
             self.player = None
             self.state = self.TITLE
 
@@ -250,6 +249,20 @@ class GameState:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    def _confirm_pressed(self):
+        """Check if Space (keyboard) or button 0 (gamepad) is pressed, with debounce."""
+        now = pygame.time.get_ticks()
+        if now - self._last_key_time < 300:
+            return False
+        keys = pygame.key.get_pressed()
+        gp_btn = False
+        if self._joystick and self._joystick.get_numbuttons() > 0:
+            gp_btn = self._joystick.get_button(0)  # A button
+        if keys[pygame.K_SPACE] or gp_btn:
+            self._last_key_time = now
+            return True
+        return False
 
     def _draw_border(self, color):
         """Decorative border around the screen."""

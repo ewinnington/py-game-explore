@@ -184,6 +184,13 @@ class Centipede(pygame.sprite.Sprite):
                 self.hitbox.center = (int(self.pos.x), int(self.pos.y))
                 break
 
+        # Safety clamp to world boundaries
+        margin = TILESIZE
+        world_rect = pygame.Rect(margin, margin, 20 * TILESIZE - 2 * margin,
+                                  19 * TILESIZE - 2 * margin)
+        self.hitbox.clamp_ip(world_rect)
+        self.pos.x = self.hitbox.centerx
+        self.pos.y = self.hitbox.centery
         self.rect.center = self.hitbox.center
 
     # ------------------------------------------------------------------

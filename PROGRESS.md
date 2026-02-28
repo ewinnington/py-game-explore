@@ -51,8 +51,8 @@ Transforming the mini-POC into a full game with levels, enemy types, hero mechan
 - [x] Victory screen with per-type kill breakdown
 
 ## Known Bugs (to fix)
-- [ ] Enemies can leave the play area (need boundary clamping)
-- [ ] Knockback can push player through walls (need post-knockback collision)
+- [x] Enemies can leave the play area → added world boundary clamping to all enemy types
+- [x] Knockback can push player through walls → multi-step knockback + world boundary clamp
 
 ### Phase 7: Sound Effects [DONE]
 - [x] Procedural chiptune SFX (sword_hit, spell_cast, pickup, enemy_hit, enemy_death,
@@ -66,10 +66,16 @@ Transforming the mini-POC into a full game with levels, enemy types, hero mechan
 - [ ] Modernize player sprite to match procedural enemy quality
 - [ ] Update tile/object sprites
 
-### Phase 9: Gamepad Support [NOT STARTED]
-- [ ] Logitech USB gamepad input alongside keyboard
+### Phase 9: Gamepad Support [DONE]
+- [x] Auto-detect first USB gamepad
+- [x] Left stick + D-pad for movement
+- [x] Button A: attack, B: magic, X: menu, Y: select
+- [x] L1/R1: navigate ring menu left/right
+- [x] Stick up/down: switch weapon/magic ring in menu
+- [x] Gamepad confirm on title/game over/victory screens
 
 ## Current Session State
-- **Working on:** Phase 8 (sprites) and Phase 9 (gamepad)
-- **Last completed step:** Phase 7 - sound system complete
-- **Notes:** Game fully playable with sound. Next: sprite refresh + gamepad input.
+- **Working on:** Phase 8 (player/game sprite refresh)
+- **Last completed step:** Phase 9 - gamepad + bug fixes complete
+- **Notes:** Game fully playable with sound, gamepad, 4 levels, 3 enemy types.
+  Remaining: sprite refresh (Phase 8) to modernize player art.

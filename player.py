@@ -102,6 +102,18 @@ class Player(pygame.sprite.Sprite):
         # Track which runes have been collected
         self.collected_runes = set()  # e.g. {'spear', 'fire_cone', ...}
 
+        # --- Gamepad ---
+        self.joystick = None
+        self._init_joystick()
+
+    def _init_joystick(self):
+        """Detect and initialize the first available gamepad."""
+        pygame.joystick.init()
+        if pygame.joystick.get_count() > 0:
+            self.joystick = pygame.joystick.Joystick(0)
+            self.joystick.init()
+            print(f"Gamepad detected: {self.joystick.get_name()}")
+
     def import_player_assets(self):
         character_path = os.path.join('sprites','player')
         self.animations = {
@@ -153,41 +165,75 @@ class Player(pygame.sprite.Sprite):
         else:
             self.image.set_alpha(255)
 
+    def _read_gamepad(self):
+        """Read gamepad state, return (move_x, move_y, attack, magic, menu, left, right, up, down, select)."""
+        if not self.joystick:
+            return 0, 0, False, False, False, False, False, False, False, False
+
+        # Left stick or D-pad
+        deadzone = 0.3
+        ax_x = self.joystick.get_axis(0)  # left stick X
+        ax_y = self.joystick.get_axis(1)  # left stick Y
+        move_x = ax_x if abs(ax_x) > deadzone else 0
+        move_y = ax_y if abs(ax_y) > deadzone else 0
+
+        # D-pad (hat)
+        if self.joystick.get_numhats() > 0:
+            hat = self.joystick.get_hat(0)
+            if hat[0] != 0:
+                move_x = hat[0]
+            if hat[1] != 0:
+                move_y = -hat[1]  # hat Y is inverted
+
+        # Buttons (standard Logitech mapping)
+        # Button 0 = A (attack), 1 = B (magic), 2 = X (menu), 3 = Y (select)
+        # Button 4 = L1 (switch ring up), 5 = R1 (switch ring down)
+        num_buttons = self.joystick.get_numbuttons()
+        btn = lambda i: self.joystick.get_button(i) if i < num_buttons else False
+
+        attack = btn(0)        # A = attack
+        magic = btn(1)         # B = magic
+        menu = btn(2)          # X = open menu
+        select = btn(3)        # Y = select in menu
+        pad_left = btn(4)      # L1 = navigate left / switch ring
+        pad_right = btn(5)     # R1 = navigate right / switch ring
+
+        return move_x, move_y, attack, magic, menu, pad_left, pad_right, False, False, select
+
     def input(self):
         keys = pygame.key.get_pressed()
+        gp_mx, gp_my, gp_attack, gp_magic, gp_menu, gp_left, gp_right, gp_up, gp_down, gp_select = self._read_gamepad()
 
         # --- Ring menu controls ---
-        # TAB held = menu open, TAB released = menu closes
-        if keys[pygame.K_TAB]:
+        # TAB or gamepad X = menu toggle
+        menu_btn = keys[pygame.K_TAB] or gp_menu
+        if menu_btn:
             if not self.circular_menu.active:
                 self.circular_menu.open()
         else:
-            # TAB released
             if self.circular_menu.active:
                 self.circular_menu.close()
-            # Reset dismiss lock so menu can reopen on next TAB press
             self.circular_menu.dismissed_by_select = False
 
         if self.circular_menu.active:
-            # Freeze player movement while menu is up
             self.direction.x = 0
             self.direction.y = 0
 
             if self.circular_menu.is_interactive:
                 # Navigate within current ring
-                if keys[pygame.K_LEFT]:
+                if keys[pygame.K_LEFT] or gp_left:
                     self.circular_menu.navigate_left()
-                if keys[pygame.K_RIGHT]:
+                if keys[pygame.K_RIGHT] or gp_right:
                     self.circular_menu.navigate_right()
 
-                # Switch between weapon/magic rings
-                if keys[pygame.K_UP]:
+                # Switch between weapon/magic rings (use D-pad up/down or stick)
+                if keys[pygame.K_UP] or gp_my < -0.5:
                     self.circular_menu.switch_ring_up()
-                if keys[pygame.K_DOWN]:
+                if keys[pygame.K_DOWN] or gp_my > 0.5:
                     self.circular_menu.switch_ring_down()
 
                 # Select current item
-                if keys[pygame.K_SPACE]:
+                if keys[pygame.K_SPACE] or gp_select:
                     selected = self.circular_menu.select()
                     if selected:
                         if selected.get('weapon_key'):
@@ -197,35 +243,35 @@ class Player(pygame.sprite.Sprite):
                                 self.weapon = weapon_key
                         elif selected.get('magic_key'):
                             self.magic = selected['magic_key']
-            return  # skip normal input while menu is active
+            return
 
         # --- Normal gameplay input ---
         if not self.attacking:
             self.direction.x = 0
             self.direction.y = 0
 
-            #movement input
-            if keys[pygame.K_LEFT]:
+            # Movement: keyboard or gamepad
+            if keys[pygame.K_LEFT] or gp_mx < -0.3:
                 self.direction.x = -1
                 self.status = 'left'
-            if keys[pygame.K_RIGHT]:
+            if keys[pygame.K_RIGHT] or gp_mx > 0.3:
                 self.direction.x = 1
                 self.status = 'right'
-            if keys[pygame.K_UP]:
+            if keys[pygame.K_UP] or gp_my < -0.3:
                 self.direction.y = -1
                 self.status = 'up'
-            if keys[pygame.K_DOWN]:
+            if keys[pygame.K_DOWN] or gp_my > 0.3:
                 self.direction.y = 1
                 self.status = 'down'
 
-            #attack input
-            if keys[pygame.K_SPACE] and not self.attacking:
+            # Attack: Space or gamepad A
+            if (keys[pygame.K_SPACE] or gp_attack) and not self.attacking:
                 self.attacking = True
-                self.attack_time =  pygame.time.get_ticks()
+                self.attack_time = pygame.time.get_ticks()
                 self.create_attack()
 
-            #magic input – cast the spell selected in the ring menu (costs MP)
-            if keys[pygame.K_LCTRL] and not self.attacking and self.magic in self.collected_runes:
+            # Magic: LCtrl or gamepad B
+            if (keys[pygame.K_LCTRL] or gp_magic) and not self.attacking and self.magic in self.collected_runes:
                 mp_cost = magic_data.get(self.magic, {}).get('mp_cost', 0)
                 if self.mp >= mp_cost:
                     self.mp -= mp_cost
@@ -372,10 +418,19 @@ class Player(pygame.sprite.Sprite):
         """Apply knockback movement and tick invulnerability."""
         if self.knockback_timer > 0:
             self.knockback_timer -= 1
-            self.hitbox.x += self.knockback_dir.x * self.knockback_speed
-            self.collision('horizontal')
-            self.hitbox.y += self.knockback_dir.y * self.knockback_speed
-            self.collision('vertical')
+            # Move in small steps to prevent clipping through walls
+            steps = max(1, int(self.knockback_speed / 4))
+            step_size = self.knockback_speed / steps
+            for _ in range(steps):
+                self.hitbox.x += self.knockback_dir.x * step_size
+                self.collision('horizontal')
+                self.hitbox.y += self.knockback_dir.y * step_size
+                self.collision('vertical')
+            # Safety: clamp to world boundaries
+            margin = TILESIZE
+            self.hitbox.clamp_ip(pygame.Rect(margin, margin,
+                                              20 * TILESIZE - 2 * margin,
+                                              19 * TILESIZE - 2 * margin))
             self.rect.center = self.hitbox.center
         if self.knockback_invuln > 0:
             self.knockback_invuln -= 1

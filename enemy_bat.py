@@ -166,6 +166,17 @@ class Bat(pygame.sprite.Sprite):
         # Bats fly over obstacles (no collision with obstacles)
         self.hitbox.x += self.direction.x * speed
         self.hitbox.y += self.direction.y * speed
+
+        # Clamp to world boundaries (1 tile inset)
+        margin = TILESIZE
+        self.hitbox.clamp_ip(pygame.Rect(margin, margin, 20 * TILESIZE - 2 * margin,
+                                          19 * TILESIZE - 2 * margin))
+        # Reverse direction if hitting boundary
+        if self.hitbox.left <= margin or self.hitbox.right >= 20 * TILESIZE - margin:
+            self.direction.x = -self.direction.x
+        if self.hitbox.top <= margin or self.hitbox.bottom >= 19 * TILESIZE - margin:
+            self.direction.y = -self.direction.y
+
         self.rect.center = self.hitbox.center
 
     # ------------------------------------------------------------------
