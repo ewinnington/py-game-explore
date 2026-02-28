@@ -8,6 +8,8 @@ from support import *
 from weapon import Weapon
 from player import weapon_data
 from enemy import Enemy
+from enemy_bat import Bat
+from enemy_centipede import Centipede
 from magic import FireCone, IceBall, ShadowBlade
 from spawner import CaveSpawner
 from hud import HUD
@@ -103,12 +105,18 @@ class Level:
         )
 
         # Spawn enemies in open areas
-        enemy_positions = [(400, 350), (700, 300), (350, 650)]
-        for pos in enemy_positions:
-            Enemy(pos,
-                  [self.visible_sprites, self.enemy_sprites],
-                  self.obstacle_sprites,
-                  self.player)
+        enemy_groups = [self.visible_sprites, self.enemy_sprites]
+
+        # Demons
+        for pos in [(400, 350), (700, 300), (350, 650)]:
+            Enemy(pos, enemy_groups, self.obstacle_sprites, self.player)
+
+        # Bats
+        for pos in [(550, 200), (800, 500)]:
+            Bat(pos, enemy_groups, self.obstacle_sprites, self.player)
+
+        # Centipede
+        Centipede((600, 700), enemy_groups, self.obstacle_sprites, self.player, num_segments=5)
 
         # Cave spawner near the bottom of the map
         cave_x = 10 * TILESIZE   # column 10 → 640 px
