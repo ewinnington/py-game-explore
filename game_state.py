@@ -35,6 +35,10 @@ class GameState:
         # Prevent input bounce
         self._last_key_time = 0
 
+        # Story crawl (lazy init after idle on title screen)
+        self._title_enter_tick = 0
+        self._crawl = None
+
         # Gamepad
         pygame.joystick.init()
         self._joystick = None
@@ -72,6 +76,27 @@ class GameState:
     def _update_title(self):
         self.display_surface.fill((8, 6, 12))
 
+        tick = pygame.time.get_ticks()
+
+        # Initialize crawl timer on first frame of title state
+        if self._title_enter_tick == 0:
+            self._title_enter_tick = tick
+
+        # After 5 seconds idle, activate story crawl
+        crawl_active = tick - self._title_enter_tick > 5000
+        if crawl_active:
+            if self._crawl is None:
+                from title_crawl import TitleCrawl
+                self._crawl = TitleCrawl()
+            self._crawl.update()
+            self._crawl.draw(self.display_surface)
+
+        # Semi-transparent overlay behind title area for readability
+        if crawl_active:
+            overlay = pygame.Surface((WIDTH, 100), pygame.SRCALPHA)
+            overlay.fill((8, 6, 12, 180))
+            self.display_surface.blit(overlay, (0, HEIGHT // 3 - 40))
+
         # Title
         title = self._title_font.render("DemoBlade", True, (255, 210, 60))
         self.display_surface.blit(title,
@@ -83,7 +108,6 @@ class GameState:
             sub.get_rect(center=(WIDTH // 2, HEIGHT // 3 + 50)))
 
         # Prompt (blinking)
-        tick = pygame.time.get_ticks()
         if (tick // 600) % 2 == 0:
             prompt = self._prompt_font.render("Press SPACE or A to begin", True, (200, 200, 180))
             self.display_surface.blit(prompt,
@@ -197,6 +221,8 @@ class GameState:
 
         if self._confirm_pressed():
             self.player = None
+            self._title_enter_tick = 0
+            self._crawl = None
             self.state = self.TITLE
 
         return True
@@ -242,6 +268,8 @@ class GameState:
 
         if self._confirm_pressed():
             self.player = None
+            self._title_enter_tick = 0
+            self._crawl = None
             self.state = self.TITLE
 
         return True

@@ -76,8 +76,16 @@ Transforming the mini-POC into a full game with levels, enemy types, hero mechan
 - [x] Stick up/down: switch weapon/magic ring in menu
 - [x] Gamepad confirm on title/game over/victory screens
 
+### Phase 10: Title Screen Story Crawl [DONE]
+- [x] Story crawl auto-triggers after 5 seconds idle on title screen
+- [x] Scrolling lore text about Veyrun and Ingnal worlds colliding
+- [x] 5 decorative mini bats flying erratically around the screen
+- [x] 3 decorative mini demons walking/charging across the bottom
+- [x] Semi-transparent overlay keeps title text readable over crawl
+- [x] Crawl loops endlessly, resets when returning to title from game over/victory
+
 ## Current Session State
 - **Working on:** All phases complete
-- **Last completed step:** Phase 8 - procedural player sprite
+- **Last completed step:** Phase 10 - title screen story crawl
 - **Notes:** Game fully playable with sound, gamepad, 4 levels, 3 enemy types,
-  all procedural sprites. No external art dependencies for characters.
+  all procedural sprites, story crawl on title screen.
