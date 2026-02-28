@@ -84,8 +84,32 @@ Transforming the mini-POC into a full game with levels, enemy types, hero mechan
 - [x] Semi-transparent overlay keeps title text readable over crawl
 - [x] Crawl loops endlessly, resets when returning to title from game over/victory
 
+### Phase 11: Major Game Polish [DONE]
+- [x] Fix gamepad ring menu navigation (L1/R1/Y edge detection)
+- [x] Runes don't spawn inside obstacles (spiral search for clear position)
+- [x] Fix last level victory condition (kill_count=15 instead of impossible kill_all)
+- [x] Make centipedes larger and scarier (SEG_SIZE=16, 7 segments, mandibles, red palette)
+- [x] Procedural sword & spear sprites (weapon_sprites.py, no disk loading)
+- [x] Procedural tile graphics + themed floors (tile_graphics.py)
+  - Meadow: bright green with flowers
+  - Dark Woods: dark green with mossy patches
+  - The Swarm: yellow-brown with sandy patches
+  - Demon's Gate: charred earth with ember spots
+- [x] Unique map layouts for levels 2-4 (new CSV files, _MAP2/_MAP3/_MAP4)
+  - Level 2: corridors with symmetrical walls (Dark Woods)
+  - Level 3: open arena with central rock formation (The Swarm)
+  - Level 4: fortress with central walled chamber (Demon's Gate)
+- [x] Chainmail armour pickup (level 1 only, reduces all damage by 1)
+- [x] Move equipped weapon/spell icons to HUD center
+- [x] Hero portrait card with golden border on HUD left side
+- [x] Fade title screen text during story crawl (to ~40% over 2 seconds)
+- [x] Sword arc vs spear line attack differentiation
+  - Sword: wide arc hitbox (good for crowd control)
+  - Spear: narrow thrust hitbox with longer reach
+
 ## Current Session State
-- **Working on:** All phases complete
-- **Last completed step:** Phase 10 - title screen story crawl
-- **Notes:** Game fully playable with sound, gamepad, 4 levels, 3 enemy types,
-  all procedural sprites, story crawl on title screen.
+- **Working on:** All phases complete through Phase 11
+- **Last completed step:** Phase 11 - major game polish (12 items)
+- **Notes:** Game fully playable with sound, gamepad, 4 unique levels,
+  3 enemy types, all procedural sprites and tiles, story crawl, themed floors,
+  chainmail armour, differentiated sword/spear attacks, hero portrait HUD.
