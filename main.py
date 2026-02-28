@@ -1,17 +1,15 @@
 import pygame, sys
 from data import *
-from level import Level
+from game_state import GameState
 
 class Game:
     def __init__(self):
-
-        # General setup
         pygame.init()
-        self.screen = pygame.display.set_mode((WIDTH,HEIGHT))
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption(CAPTION)
         self.clock = pygame.time.Clock()
 
-        self.level = Level()
+        self.game_state = GameState()
 
     def run(self):
         while True:
@@ -21,7 +19,7 @@ class Game:
                     sys.exit()
 
             self.screen.fill('dark green')
-            self.level.run()
+            self.game_state.update()
             pygame.display.update()
             self.clock.tick(FPS)
 

@@ -34,23 +34,32 @@ Transforming the mini-POC into a full game with levels, enemy types, hero mechan
 - [x] Health pickup (heart/potion) restores HP
 - [x] Pickups placed in level with actual weapon/spell icons
 
-### Phase 5: Game State & Level System [NOT STARTED]
-- [ ] Game state manager (title, gameplay, level_transition, game_over)
-- [ ] Title screen
-- [ ] 3-4 levels with different maps, enemy compositions, objectives
-- [ ] Level transition portals/exits
-- [ ] Level objectives (kill X enemies, reach exit, find item, defeat boss)
+### Phase 5: Game State & Level System [DONE]
+- [x] Game state manager (title, gameplay, level_transition, game_over, victory)
+- [x] Title screen with controls hint
+- [x] 4 levels: The Meadow, Dark Woods, The Swarm, Demon's Gate
+- [x] Level transition portals (appear when objective complete)
+- [x] Level objectives: kill_all and kill_count types
+- [x] Player carries stats/inventory between levels
+- [x] Victory screen with full kill stats breakdown
 
-### Phase 6: Kill Tracking & Objectives UI [NOT STARTED]
-- [ ] Kill counter per enemy type
-- [ ] On-screen objective display
-- [ ] Level completion screen with stats
+### Phase 6: Kill Tracking & Objectives UI [DONE]
+- [x] Kill counter per enemy type (player.kill_counts dict)
+- [x] On-screen objective display with progress counter
+- [x] Level name display (fades after 3s)
+- [x] Game over screen with stats
+- [x] Victory screen with per-type kill breakdown
 
 ## Known Bugs (to fix)
 - [ ] Enemies can leave the play area (need boundary clamping)
 - [ ] Knockback can push player through walls (need post-knockback collision)
 
+### Phase 7: Sound Effects [NOT STARTED]
+- [ ] Chiptune sound effects (attack, spell, pickup, enemy hit, enemy death, portal, level up)
+- [ ] Background music / ambient track
+
 ## Current Session State
-- **Working on:** Phase 5
-- **Last completed step:** Phase 4 - pickups working
-- **Notes:** Phases 1-4 complete. Next: game state manager and level system.
+- **Working on:** Phase 7 (sound) + bug fixes
+- **Last completed step:** Phase 6 - all core gameplay complete
+- **Notes:** Phases 1-6 done. Game is playable end-to-end with 4 levels, 3 enemy types,
+  pickups, dual ring menu, objectives, and full game state flow.
