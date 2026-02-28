@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(python -c \":*)",
-      "Bash(timeout 3 python main.py)"
+      "Bash(timeout 3 python main.py)",
+      "Bash(timeout 4 python main.py)"
     ]
   }
 }

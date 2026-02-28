@@ -6,6 +6,9 @@ from tile import Tile
 from player import Player
 from support import *
 from weapon import Weapon
+from enemy import Enemy
+from magic import FireCone, IceBall, ShadowBlade
+from spawner import CaveSpawner
 
 class Level:
     def __init__(self):
@@ -15,6 +18,8 @@ class Level:
         # setup sprite groups
         self.visible_sprites = YSortCameraGroup()
         self.obstacle_sprites = pygame.sprite.Group()
+        self.enemy_sprites = pygame.sprite.Group()
+        self.magic_sprites = pygame.sprite.Group()
 
         # attack sprites
         self.current_attack = None
@@ -25,10 +30,22 @@ class Level:
     def create_attack(self):
         self.current_attack = Weapon(self.player, [self.visible_sprites])
 
-    def destroy_weapon(self): 
-        if self.current_attack: 
+    def destroy_weapon(self):
+        if self.current_attack:
             self.current_attack.kill()
         self.current_attack = None
+
+    def create_magic(self):
+        """Spawn the spell the player currently has equipped."""
+        key = self.player.magic
+        groups = [self.visible_sprites, self.magic_sprites]
+
+        if key == 'fire_cone':
+            FireCone(self.player, groups)
+        elif key == 'ice_ball':
+            IceBall(self.player, groups)
+        elif key == 'shadow_blade':
+            ShadowBlade(self.player, groups, self.enemy_sprites)
 
     def create_map(self):
         layout = {
@@ -46,8 +63,8 @@ class Level:
         for style,layout in layout.items():
             for row_index,row in enumerate(layout):
                 for col_index, col in enumerate(row):
-                    if col != '-1': 
-                        x = col_index * TILESIZE; 
+                    if col != '-1':
+                        x = col_index * TILESIZE;
                         y = row_index * TILESIZE;
                         if style == 'boundary':
                            Tile((x,y), [self.obstacle_sprites],'invisible')   # making the boundary invisible
@@ -62,25 +79,84 @@ class Level:
                             Tile((x,y), [self.visible_sprites,self.obstacle_sprites],'grass', random_grass_image)   # making the boundary invisible
                         if style == 'object':
                             # Object image
-                            
+
                             object_image = graphics['objects'][int(col)]
                             if (int(col)==1) :
                                 objectType = 'sceneryObject' #scenery object can be 64x128 and is impassable
-                                Tile((x,y), [self.visible_sprites,self.obstacle_sprites],objectType,object_image)   
-                            else: 
+                                Tile((x,y), [self.visible_sprites,self.obstacle_sprites],objectType,object_image)
+                            else:
                                 objectType = 'object'
                                 Tile((x,y), [self.visible_sprites],objectType,object_image)   # objects are passable
-                    
-        self.player = Player((100,200), [self.visible_sprites], self.obstacle_sprites, self.create_attack, self.destroy_weapon)
+
+        self.player = Player(
+            (100, 200),
+            [self.visible_sprites],
+            self.obstacle_sprites,
+            self.create_attack,
+            self.destroy_weapon,
+            self.create_magic,
+        )
+
+        # Spawn enemies in open areas
+        enemy_positions = [(400, 350), (700, 300), (350, 650)]
+        for pos in enemy_positions:
+            Enemy(pos,
+                  [self.visible_sprites, self.enemy_sprites],
+                  self.obstacle_sprites,
+                  self.player)
+
+        # Cave spawner near the bottom of the map
+        cave_x = 10 * TILESIZE   # column 10 → 640 px
+        cave_y = 17 * TILESIZE   # row 17 → 1088 px  (near bottom)
+        self.cave_spawner = CaveSpawner(
+            pos=(cave_x, cave_y),
+            groups=[self.visible_sprites],
+            obstacle_sprites=self.obstacle_sprites,
+            enemy_groups=[self.visible_sprites, self.enemy_sprites],
+            player=self.player,
+            spawn_interval=4000,
+            max_alive=5,
+        )
+
+    def _check_weapon_hits(self):
+        """Kill enemies struck by the player's weapon."""
+        if not self.current_attack:
+            return
+        for enemy in self.enemy_sprites:
+            if enemy.state == enemy.DYING:
+                continue
+            if self.current_attack.rect.colliderect(enemy.hitbox):
+                enemy.take_hit()
+
+    def _check_magic_hits(self):
+        """Kill enemies struck by magic projectiles."""
+        for spell in list(self.magic_sprites):
+            for enemy in self.enemy_sprites:
+                if enemy.state == enemy.DYING:
+                    continue
+                if id(enemy) in spell.hit_enemies:
+                    continue
+                if spell.hitbox.colliderect(enemy.hitbox):
+                    enemy.take_hit()
+                    spell.hit_enemies.add(id(enemy))
+                    if not spell.piercing:
+                        spell.kill()
+                        break
 
     def run(self):
         self.visible_sprites.custom_draw(self.player)
         self.visible_sprites.update()
+        self._check_weapon_hits()
+        self._check_magic_hits()
+
+        # Draw enemy notice indicators on top of sprites
+        offset = self.visible_sprites.offset
+        for enemy in self.enemy_sprites:
+            enemy.draw_notice_indicator(self.display_surface, offset)
 
         # Draw the ring menu on top of everything, in screen coordinates
         menu = self.player.circular_menu
         if menu.active:
-            offset = self.visible_sprites.offset
             screen_center = (
                 self.player.rect.centerx - offset.x,
                 self.player.rect.centery - offset.y,
@@ -96,13 +172,13 @@ class YSortCameraGroup(pygame.sprite.Group):
         self.half_width = self.display_surface.get_width() // 2
         self.offset = pygame.math.Vector2(0,0)
 
-        #creating the floor 
+        #creating the floor
         self.floor_surf = pygame.image.load(os.path.join('sprites','landscape_grass.png')).convert()
         self.floor_rect = self.floor_surf.get_rect(topleft = (0,0))
 
     def custom_draw(self, player):
 
-        # Creating the camera movement offset 
+        # Creating the camera movement offset
         # this could be changed to allow the player to move in a central location without camera movement with min, max boxes
         self.offset.x = min(self.floor_rect.width ,max(0, player.rect.centerx - self.half_width))
         self.offset.y = min(self.floor_rect.height ,max(0,player.rect.centery - self.half_height))
