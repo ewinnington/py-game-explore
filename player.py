@@ -2,7 +2,7 @@ import pygame
 import os
 from data import *
 from support import *
-from circular_menu import CircularMenu
+from dual_ring_menu import DualRingMenu
 from magic import magic_data
 
 weapon_data = {
@@ -87,13 +87,16 @@ class Player(pygame.sprite.Sprite):
         self.knockback_invuln = 0       # invulnerability frames remaining
         self.knockback_invuln_time = 36 # frames (~0.6 s)
 
-        # --- Circular ring menu (Secret of Mana style) ---
+        # --- Dual ring menu (Secret of Mana style) ---
         # Start with only sword; other items found as runes
-        menu_items = [
+        weapon_items = [
             {'name': 'Sword', 'icon': weapon_data['sword']['graphic'], 'weapon_key': 'sword'},
         ]
-        self.circular_menu = CircularMenu(items=menu_items, radius=80)
-        self.circular_menu.item_pool = []
+        self.circular_menu = DualRingMenu(
+            weapon_items=weapon_items,
+            magic_items=[],   # empty until player finds magic runes
+            radius=80,
+        )
 
         # Track which runes have been collected
         self.collected_runes = set()  # e.g. {'spear', 'fire_cone', ...}
@@ -170,17 +173,17 @@ class Player(pygame.sprite.Sprite):
             self.direction.y = 0
 
             if self.circular_menu.is_interactive:
-                # Navigate ring
+                # Navigate within current ring
                 if keys[pygame.K_LEFT]:
                     self.circular_menu.navigate_left()
                 if keys[pygame.K_RIGHT]:
                     self.circular_menu.navigate_right()
 
-                # Add / remove items
+                # Switch between weapon/magic rings
                 if keys[pygame.K_UP]:
-                    self.circular_menu.add_item()
+                    self.circular_menu.switch_ring_up()
                 if keys[pygame.K_DOWN]:
-                    self.circular_menu.remove_item()
+                    self.circular_menu.switch_ring_down()
 
                 # Select current item
                 if keys[pygame.K_SPACE]:
@@ -221,7 +224,7 @@ class Player(pygame.sprite.Sprite):
                 self.create_attack()
 
             #magic input – cast the spell selected in the ring menu (costs MP)
-            if keys[pygame.K_LCTRL] and not self.attacking:
+            if keys[pygame.K_LCTRL] and not self.attacking and self.magic in self.collected_runes:
                 mp_cost = magic_data.get(self.magic, {}).get('mp_cost', 0)
                 if self.mp >= mp_cost:
                     self.mp -= mp_cost
@@ -305,6 +308,31 @@ class Player(pygame.sprite.Sprite):
         self.kill_counts[enemy_type] = self.kill_counts.get(enemy_type, 0) + 1
         while self.xp >= self.xp_to_next:
             self._level_up()
+
+    def collect_rune(self, rune_type):
+        """Add a weapon or spell to the appropriate ring menu."""
+        if rune_type in self.collected_runes:
+            return  # already have it
+        self.collected_runes.add(rune_type)
+
+        if rune_type in weapon_data:
+            self.circular_menu.add_weapon({
+                'name': rune_type.capitalize(),
+                'icon': weapon_data[rune_type]['graphic'],
+                'weapon_key': rune_type,
+            })
+        elif rune_type in magic_data:
+            self.circular_menu.add_magic({
+                'name': magic_data[rune_type].get('name', rune_type.replace('_', ' ').title()),
+                'icon': magic_data[rune_type]['icon'],
+                'magic_key': rune_type,
+            })
+            # Set as active magic if it's the first one
+            if self.magic not in self.collected_runes or not any(
+                r in self.collected_runes for r in magic_data if r != rune_type
+            ):
+                self.magic = rune_type
+        print(f"Collected rune: {rune_type}!")
 
     def _level_up(self):
         """Increase level, boost max HP and MP."""
