@@ -5,6 +5,7 @@ from support import *
 from dual_ring_menu import DualRingMenu
 from magic import magic_data
 from sounds import SoundManager
+from player_sprite import build_player_animations, build_player_icon
 
 weapon_data = {
     'sword': { 'cooldown':100, 'damage':10, 'graphic': pygame.image.load(os.path.join('sprites','weapons','sword','full.png')) },
@@ -31,8 +32,7 @@ class Player(pygame.sprite.Sprite):
     def __init__(self, pos, groups, obstacle_sprites,
                  create_attack, destroy_weapon, create_magic):
         super().__init__(groups)
-        self.image = pygame.image.load(os.path.join('sprites','player.png')).convert_alpha()
-        self.image.set_colorkey(COLORKEY)
+        self.image = build_player_icon()
         self.rect = self.image.get_rect(topleft=pos)
         self.hitbox = self.rect.inflate(0,-14) # allow 8px overlap on vertical
 
@@ -115,16 +115,7 @@ class Player(pygame.sprite.Sprite):
             print(f"Gamepad detected: {self.joystick.get_name()}")
 
     def import_player_assets(self):
-        character_path = os.path.join('sprites','player')
-        self.animations = {
-          'up':[],'down':[],'left':[],'right':[],
-          'up_idle':[],'down_idle':[],'left_idle':[],'right_idle':[],
-          'up_attack': [],'down_attack':[],'left_attack':[],'right_attack':[]
-        }
-
-        for animation in self.animations.keys():
-            animation_path = os.path.join(character_path,animation)
-            self.animations[animation] = import_folder(animation_path)
+        self.animations = build_player_animations()
 
     def get_status(self):
 
