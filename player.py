@@ -9,6 +9,22 @@ weapon_data = {
     'spear': { 'cooldown':120, 'damage':10, 'graphic': pygame.image.load(os.path.join('sprites','weapons','spear','full.png')) },
 }
 
+
+def _make_placeholder_icon(label, color, size=32):
+    """Generate a simple colored placeholder icon with a letter."""
+    surf = pygame.Surface((size, size), pygame.SRCALPHA)
+    pygame.draw.rect(surf, color, (0, 0, size, size), border_radius=6)
+    # Subtle highlight on top half
+    highlight = pygame.Surface((size, size // 3), pygame.SRCALPHA)
+    highlight.fill((255, 255, 255, 35))
+    surf.blit(highlight, (0, 0))
+    # Letter
+    font = pygame.font.Font(None, 22)
+    letter = font.render(label[0].upper(), True, (255, 255, 255))
+    surf.blit(letter, letter.get_rect(center=(size // 2, size // 2)))
+    return surf
+
+
 class Player(pygame.sprite.Sprite):
     def __init__(self,pos,groups, obstacle_sprites,create_attack,destroy_weapon):
         super().__init__(groups)
@@ -29,7 +45,7 @@ class Player(pygame.sprite.Sprite):
         self.attacking = False
         self.attack_cooldown = 400
         self.attack_time = None
-        
+
         self.obstacle_sprites = obstacle_sprites
 
         self.create_attack = create_attack
@@ -40,18 +56,24 @@ class Player(pygame.sprite.Sprite):
         self.weapon_switch_time = None
         self.switch_duration_cooldown = 200
 
-        # Add circular menu
-        self.circular_menu = CircularMenu(
-            center_pos=(self.rect.centerx, self.rect.centery),
-            radius=100,
-            items=[weapon_data[weapon]['graphic'] for weapon in weapon_data]
-        )
+        # --- Circular ring menu (Secret of Mana style) ---
+        menu_items = [
+            {'name': 'Sword',  'icon': weapon_data['sword']['graphic'], 'weapon_key': 'sword'},
+            {'name': 'Spear',  'icon': weapon_data['spear']['graphic'], 'weapon_key': 'spear'},
+            {'name': 'Shield', 'icon': _make_placeholder_icon('Shield', (70, 95, 170))},
+            {'name': 'Potion', 'icon': _make_placeholder_icon('Potion', (55, 150, 75))},
+        ]
+        self.circular_menu = CircularMenu(items=menu_items, radius=80)
+        self.circular_menu.item_pool = [
+            {'name': 'Ring',   'icon': _make_placeholder_icon('Ring',   (150, 70, 170))},
+            {'name': 'Bow',    'icon': _make_placeholder_icon('Bow',    (140, 110, 55))},
+        ]
 
     def import_player_assets(self):
         character_path = os.path.join('sprites','player')
-        self.animations = { 
-          'up':[],'down':[],'left':[],'right':[], 
-          'up_idle':[],'down_idle':[],'left_idle':[],'right_idle':[], 
+        self.animations = {
+          'up':[],'down':[],'left':[],'right':[],
+          'up_idle':[],'down_idle':[],'left_idle':[],'right_idle':[],
           'up_attack': [],'down_attack':[],'left_attack':[],'right_attack':[]
         }
 
@@ -65,7 +87,7 @@ class Player(pygame.sprite.Sprite):
             if not 'idle' in self.status and not 'attack' in self.status:
                 self.status = self.status + '_idle'
 
-        if self.attacking: 
+        if self.attacking:
             self.direction.x = 0
             self.direction.y = 0
             if not 'attack' in self.status:
@@ -76,7 +98,7 @@ class Player(pygame.sprite.Sprite):
         else:
             if 'attack' in self.status:
                 self.status = self.status.replace('_attack','')
-        
+
     def animate(self):
         animation = self.animations[self.status]
 
@@ -90,66 +112,87 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=self.hitbox.center)
 
     def input(self):
-
         keys = pygame.key.get_pressed()
 
-        if self.circular_menu.active:
-            self.direction.x = 0
-            self.direction.y = 0
-            if keys[pygame.K_LEFT]:
-                self.circular_menu.update(True, False)
-            if keys[pygame.K_RIGHT]:
-                self.circular_menu.update(False, True)
-        else:
-            self.direction.x = 0
-            self.direction.y = 0
-            keys = pygame.key.get_pressed()
-            if not self.attacking: #stop moving if attacking
-                #movement input
-                if keys[pygame.K_LEFT]:
-                    self.direction.x = -1
-                    self.status = 'left'
-                if keys[pygame.K_RIGHT]:
-                    self.direction.x = 1
-                    self.status = 'right'
-                if keys[pygame.K_UP]:
-                    self.direction.y = -1
-                    self.status = 'up'
-                if keys[pygame.K_DOWN]:
-                    self.direction.y = 1
-                    self.status = 'down'
-
-                #attack input
-                if keys[pygame.K_SPACE] and not self.attacking:
-                    self.attacking = True
-                    self.attack_time =  pygame.time.get_ticks()
-                    self.create_attack()
-
-                #magic input
-                if keys[pygame.K_LCTRL] and not self.attacking:
-                    self.attacking = True
-                    self.attack_time =  pygame.time.get_ticks()
-                    print('magic')
-
-                if keys[pygame.K_RCTRL] and not self.attacking and self.can_switch_weapon:
-                    self.can_switch_weapon = False
-                    self.weapon_switch_time = pygame.time.get_ticks()
-                    self.weapon_index += 1
-                    if self.weapon_index >= len(weapon_data):
-                        self.weapon_index = 0
-                    self.weapon = list(weapon_data.keys())[self.weapon_index]
-        
+        # --- Ring menu controls ---
+        # TAB held = menu open, TAB released = menu closes
         if keys[pygame.K_TAB]:
             if not self.circular_menu.active:
-                self.circular_menu.toggle()
+                self.circular_menu.open()
         else:
+            # TAB released
             if self.circular_menu.active:
-                self.circular_menu.toggle()
-                selected_weapon = list(weapon_data.keys())[self.circular_menu.selected_index]
-                if selected_weapon != self.weapon:
-                    self.weapon_index = self.circular_menu.selected_index
-                    self.weapon = selected_weapon
-        
+                self.circular_menu.close()
+            # Reset dismiss lock so menu can reopen on next TAB press
+            self.circular_menu.dismissed_by_select = False
+
+        if self.circular_menu.active:
+            # Freeze player movement while menu is up
+            self.direction.x = 0
+            self.direction.y = 0
+
+            if self.circular_menu.is_interactive:
+                # Navigate ring
+                if keys[pygame.K_LEFT]:
+                    self.circular_menu.navigate_left()
+                if keys[pygame.K_RIGHT]:
+                    self.circular_menu.navigate_right()
+
+                # Add / remove items
+                if keys[pygame.K_UP]:
+                    self.circular_menu.add_item()
+                if keys[pygame.K_DOWN]:
+                    self.circular_menu.remove_item()
+
+                # Select current item
+                if keys[pygame.K_SPACE]:
+                    selected = self.circular_menu.select()
+                    if selected and selected.get('weapon_key'):
+                        weapon_key = selected['weapon_key']
+                        if weapon_key in weapon_data:
+                            self.weapon_index = list(weapon_data.keys()).index(weapon_key)
+                            self.weapon = weapon_key
+            return  # skip normal input while menu is active
+
+        # --- Normal gameplay input ---
+        if not self.attacking:
+            self.direction.x = 0
+            self.direction.y = 0
+
+            #movement input
+            if keys[pygame.K_LEFT]:
+                self.direction.x = -1
+                self.status = 'left'
+            if keys[pygame.K_RIGHT]:
+                self.direction.x = 1
+                self.status = 'right'
+            if keys[pygame.K_UP]:
+                self.direction.y = -1
+                self.status = 'up'
+            if keys[pygame.K_DOWN]:
+                self.direction.y = 1
+                self.status = 'down'
+
+            #attack input
+            if keys[pygame.K_SPACE] and not self.attacking:
+                self.attacking = True
+                self.attack_time =  pygame.time.get_ticks()
+                self.create_attack()
+
+            #magic input
+            if keys[pygame.K_LCTRL] and not self.attacking:
+                self.attacking = True
+                self.attack_time =  pygame.time.get_ticks()
+                print('magic')
+
+            if keys[pygame.K_RCTRL] and not self.attacking and self.can_switch_weapon:
+                self.can_switch_weapon = False
+                self.weapon_switch_time = pygame.time.get_ticks()
+                self.weapon_index += 1
+                if self.weapon_index >= len(weapon_data):
+                    self.weapon_index = 0
+                self.weapon = list(weapon_data.keys())[self.weapon_index]
+
     def cooldown(self):
         current_time = pygame.time.get_ticks()
         if self.attacking:
@@ -176,16 +219,16 @@ class Player(pygame.sprite.Sprite):
         if direction == 'horizontal':
             for sprite in self.obstacle_sprites:
                 if sprite.hitbox.colliderect(self.hitbox):
-                    # We assume static obstacles here 
+                    # We assume static obstacles here
                     if self.direction.x > 0: #moving right & colliding
                         self.hitbox.right = sprite.hitbox.left
                     if self.direction.x < 0: #moving left & colliding
                         self.hitbox.left = sprite.hitbox.right
 
-        if direction == 'vertical': 
+        if direction == 'vertical':
             for sprite in self.obstacle_sprites:
                 if sprite.hitbox.colliderect(self.hitbox):
-                    # We assume static obstacles here 
+                    # We assume static obstacles here
                     if self.direction.y > 0: #moving down & colliding
                         self.hitbox.bottom = sprite.hitbox.top
                     if self.direction.y < 0: #moving up & colliding
@@ -197,9 +240,4 @@ class Player(pygame.sprite.Sprite):
         self.get_status()
         self.animate()
         self.move(self.speed)
-        self.circular_menu.center_pos = (self.rect.centerx, self.rect.centery)
-
-
-    def draw(self, surface):
-        super().draw(surface)
-        self.circular_menu.draw(surface)
+        self.circular_menu.update()

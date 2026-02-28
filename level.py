@@ -77,6 +77,16 @@ class Level:
         self.visible_sprites.custom_draw(self.player)
         self.visible_sprites.update()
 
+        # Draw the ring menu on top of everything, in screen coordinates
+        menu = self.player.circular_menu
+        if menu.active:
+            offset = self.visible_sprites.offset
+            screen_center = (
+                self.player.rect.centerx - offset.x,
+                self.player.rect.centery - offset.y,
+            )
+            menu.draw(self.display_surface, screen_center)
+
 
 class YSortCameraGroup(pygame.sprite.Group):
     def __init__(self):
