@@ -433,14 +433,31 @@ class Player(pygame.sprite.Sprite):
                 self.collision('horizontal')
                 self.hitbox.y += self.knockback_dir.y * step_size
                 self.collision('vertical')
-            # Safety: clamp to world boundaries
-            margin = TILESIZE
-            self.hitbox.clamp_ip(pygame.Rect(margin, margin,
-                                              20 * TILESIZE - 2 * margin,
-                                              19 * TILESIZE - 2 * margin))
             self.rect.center = self.hitbox.center
         if self.knockback_invuln > 0:
             self.knockback_invuln -= 1
+
+    def _clamp_to_world(self):
+        """Ensure player is always within the playable area. Runs every frame."""
+        margin = TILESIZE + 4
+        world = pygame.Rect(margin, margin,
+                            20 * TILESIZE - 2 * margin,
+                            20 * TILESIZE - 2 * margin)
+        clamped = False
+        if self.hitbox.left < world.left:
+            self.hitbox.left = world.left
+            clamped = True
+        if self.hitbox.right > world.right:
+            self.hitbox.right = world.right
+            clamped = True
+        if self.hitbox.top < world.top:
+            self.hitbox.top = world.top
+            clamped = True
+        if self.hitbox.bottom > world.bottom:
+            self.hitbox.bottom = world.bottom
+            clamped = True
+        if clamped:
+            self.rect.center = self.hitbox.center
 
     def update(self):
         if not self.alive_flag:
@@ -456,5 +473,6 @@ class Player(pygame.sprite.Sprite):
         self.animate()
         self.move(self.speed)
         self._process_knockback()
+        self._clamp_to_world()
         self._regen_mp(1.0 / FPS)
         self.circular_menu.update()

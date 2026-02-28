@@ -192,34 +192,109 @@ def make_rock(theme='meadow'):
 # ---------------------------------------------------------------------------
 
 def make_grass_tuft(theme='meadow'):
-    """Generate a 64x64 clump of tall grass blades.
+    """Generate a 64x64 bush obstacle with contrasting flowers/vines.
 
-    Returns a Surface with per-pixel alpha.
+    Returns a Surface with per-pixel alpha.  Designed to stand out
+    clearly against the themed floor background.
     """
     size = TILESIZE
     surf = pygame.Surface((size, size), pygame.SRCALPHA)
     pal = THEMES[theme]
 
-    base_col = pal['grass_base']
-    light_col = pal['grass_light']
-    dark_col = pal['grass_dark']
+    # Use DARKER shades than the floor so the bush contrasts
+    bush_dark = (_clamp(pal['grass_dark'][0] - 20),
+                 _clamp(pal['grass_dark'][1] - 15),
+                 _clamp(pal['grass_dark'][2] - 20))
+    bush_mid = pal['grass_dark']
+    bush_light = pal['grass_base']
 
-    # draw several blades from a shared base area
-    num_blades = random.randint(7, 13)
-    base_y = size - 10  # ground line
+    cx, cy = size // 2, size // 2 + 6  # slightly lower center
 
-    for _ in range(num_blades):
-        bx = random.randint(12, size - 12)
-        blade_h = random.randint(20, 44)
-        tip_x = bx + random.randint(-8, 8)
-        tip_y = base_y - blade_h
-        col = _vary(random.choice([base_col, light_col, dark_col]), 8)
+    # -- shadow on ground --
+    pygame.draw.ellipse(surf, (0, 0, 0, 50), (8, size - 14, 48, 12))
 
-        # each blade is two lines (giving 2px width at base tapering to 1px)
-        pygame.draw.line(surf, col, (bx, base_y), (tip_x, tip_y), 2)
-        # lighter inner highlight
-        hcol = _vary(light_col, 6)
-        pygame.draw.line(surf, hcol, (bx, base_y - 2), (tip_x, tip_y + 4))
+    # -- main bush body: overlapping ellipses for a chunky shrub shape --
+    # Large dark base
+    pygame.draw.ellipse(surf, bush_dark, (8, 16, 48, 38))
+    # Medium mid-tone overlay (upper-left bias = highlight)
+    pygame.draw.ellipse(surf, bush_mid, (10, 14, 40, 30))
+    # Small lighter crown
+    pygame.draw.ellipse(surf, bush_light, (14, 12, 32, 22))
+
+    # -- leafy texture: small random circles across the bush --
+    for _ in range(25):
+        lx = random.randint(12, size - 12)
+        ly = random.randint(14, size - 16)
+        # Only draw inside the rough ellipse shape
+        dx = (lx - cx) / 24.0
+        dy = (ly - cy) / 19.0
+        if dx * dx + dy * dy <= 1.0:
+            lr = random.randint(2, 4)
+            lc = _vary(random.choice([bush_dark, bush_mid, bush_light]), 12)
+            pygame.draw.circle(surf, lc, (lx, ly), lr)
+
+    # -- dark outline strokes for definition --
+    outline_col = (_clamp(bush_dark[0] - 30),
+                   _clamp(bush_dark[1] - 25),
+                   _clamp(bush_dark[2] - 30))
+    pygame.draw.ellipse(surf, outline_col, (8, 16, 48, 38), 2)
+
+    # -- colourful flowers / accents on top (theme-varied) --
+    if theme == 'meadow':
+        flower_colors = [
+            (220, 60, 80),    # red
+            (240, 200, 50),   # yellow
+            (200, 120, 220),  # purple
+            (255, 255, 255),  # white
+            (255, 140, 50),   # orange
+        ]
+    elif theme == 'darkwoods':
+        flower_colors = [
+            (180, 80, 220),   # purple
+            (255, 255, 255),  # white
+            (100, 200, 255),  # pale blue
+            (220, 180, 255),  # lavender
+        ]
+    elif theme == 'swarm':
+        flower_colors = [
+            (255, 200, 80),   # gold
+            (255, 140, 50),   # orange
+            (220, 220, 180),  # cream
+        ]
+    else:  # demonsgate
+        flower_colors = [
+            (255, 80, 40),    # fiery red
+            (255, 160, 30),   # ember orange
+            (200, 60, 200),   # dark purple
+        ]
+
+    # Scatter 4-7 flowers on the bush surface
+    num_flowers = random.randint(4, 7)
+    for _ in range(num_flowers):
+        fx = random.randint(14, size - 14)
+        fy = random.randint(14, size - 20)
+        dx = (fx - cx) / 22.0
+        dy = (fy - cy) / 17.0
+        if dx * dx + dy * dy <= 0.85:
+            fc = random.choice(flower_colors)
+            # Flower = small circle with a bright center dot
+            pygame.draw.circle(surf, fc, (fx, fy), 3)
+            pygame.draw.circle(surf, (255, 255, 220), (fx, fy), 1)
+
+    # -- small vine/leaf tips poking out at edges --
+    for _ in range(random.randint(3, 5)):
+        side = random.choice(['left', 'right', 'top'])
+        if side == 'left':
+            vx = random.randint(4, 10)
+            vy = random.randint(20, 44)
+        elif side == 'right':
+            vx = random.randint(size - 10, size - 4)
+            vy = random.randint(20, 44)
+        else:
+            vx = random.randint(16, size - 16)
+            vy = random.randint(8, 14)
+        vc = _vary(bush_light, 10)
+        pygame.draw.circle(surf, vc, (vx, vy), 2)
 
     return surf
 

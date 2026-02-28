@@ -26,50 +26,23 @@ _SPEAR_TIP  = (200, 210, 220)
 def _draw_sword_down(w: int, h: int) -> pygame.Surface:
     """Draw a sword pointing downward (canonical orientation).
 
-    Layout (top to bottom):
-      - Blade  : top ~60 % of height
-      - Guard  : thin band
-      - Grip   : bottom ~25 %
+    Layout (top to bottom) — grip near player, blade away:
+      - Pommel  : very top
+      - Grip    : top ~25 %
+      - Guard   : thin band
+      - Blade   : bottom ~58 % with pointed tip at very bottom
     """
     surf = pygame.Surface((w, h), pygame.SRCALPHA)
 
     cx = w // 2  # centre-x
 
-    # -- blade --
-    blade_top = 0
-    blade_bot = int(h * 0.58)
-    blade_hw  = w // 2 - 2          # half-width of blade
-
-    # main blade body
-    pygame.draw.polygon(surf, _BLADE, [
-        (cx, blade_bot + 4),         # pointed tip
-        (cx - blade_hw, blade_top),
-        (cx + blade_hw, blade_top),
-    ])
-    # lighter edge highlight (left)
-    pygame.draw.line(surf, _BLADE_EDGE,
-                     (cx - blade_hw, blade_top),
-                     (cx, blade_bot + 4), 1)
-    # darker edge (right)
-    pygame.draw.line(surf, _BLADE_DARK,
-                     (cx + blade_hw, blade_top),
-                     (cx, blade_bot + 4), 1)
-    # centre fuller (dark line down the middle)
-    pygame.draw.line(surf, _BLADE_DARK,
-                     (cx, blade_top + 2),
-                     (cx, blade_bot - 2), 1)
-
-    # -- cross-guard --
-    guard_y = blade_bot + 5
-    guard_h = 4
-    pygame.draw.rect(surf, _GUARD, (0, guard_y, w, guard_h))
-    # small highlight
-    pygame.draw.rect(surf, (230, 200, 80), (1, guard_y, w - 2, 1))
+    # -- pommel (top) --
+    pygame.draw.circle(surf, _GUARD, (cx, 3), 3)
 
     # -- grip --
-    grip_top = guard_y + guard_h + 1
-    grip_bot = h - 3
-    grip_hw  = 3
+    grip_top = 6
+    grip_bot = int(h * 0.28)
+    grip_hw = 3
     pygame.draw.rect(surf, _GRIP,
                      (cx - grip_hw, grip_top, grip_hw * 2, grip_bot - grip_top))
     # wrap lines for texture
@@ -77,8 +50,35 @@ def _draw_sword_down(w: int, h: int) -> pygame.Surface:
         pygame.draw.line(surf, _GRIP_DARK,
                          (cx - grip_hw, yy), (cx + grip_hw - 1, yy), 1)
 
-    # -- pommel --
-    pygame.draw.circle(surf, _GUARD, (cx, h - 2), 3)
+    # -- cross-guard --
+    guard_y = grip_bot + 1
+    guard_h = 4
+    pygame.draw.rect(surf, _GUARD, (0, guard_y, w, guard_h))
+    # small highlight
+    pygame.draw.rect(surf, (230, 200, 80), (1, guard_y, w - 2, 1))
+
+    # -- blade (guard to bottom, tip at very bottom) --
+    blade_top = guard_y + guard_h
+    blade_hw = w // 2 - 2
+
+    # main blade body — triangle with flat top edge, pointed tip at bottom
+    pygame.draw.polygon(surf, _BLADE, [
+        (cx - blade_hw, blade_top),
+        (cx + blade_hw, blade_top),
+        (cx, h),                     # pointed tip at bottom
+    ])
+    # lighter edge highlight (left)
+    pygame.draw.line(surf, _BLADE_EDGE,
+                     (cx - blade_hw, blade_top),
+                     (cx, h), 1)
+    # darker edge (right)
+    pygame.draw.line(surf, _BLADE_DARK,
+                     (cx + blade_hw, blade_top),
+                     (cx, h), 1)
+    # centre fuller (dark line down the middle)
+    pygame.draw.line(surf, _BLADE_DARK,
+                     (cx, blade_top + 2),
+                     (cx, h - 4), 1)
 
     return surf
 
