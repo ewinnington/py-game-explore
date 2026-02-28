@@ -2,6 +2,7 @@ import pygame
 import os
 from data import *
 from support import *
+from circular_menu import CircularMenu
 
 weapon_data = {
     'sword': { 'cooldown':100, 'damage':10, 'graphic': pygame.image.load(os.path.join('sprites','weapons','sword','full.png')) },
@@ -38,6 +39,13 @@ class Player(pygame.sprite.Sprite):
         self.can_switch_weapon = True
         self.weapon_switch_time = None
         self.switch_duration_cooldown = 200
+
+        # Add circular menu
+        self.circular_menu = CircularMenu(
+            center_pos=(self.rect.centerx, self.rect.centery),
+            radius=100,
+            items=[weapon_data[weapon]['graphic'] for weapon in weapon_data]
+        )
 
     def import_player_assets(self):
         character_path = os.path.join('sprites','player')
@@ -82,44 +90,65 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=self.hitbox.center)
 
     def input(self):
-        self.direction.x = 0
-        self.direction.y = 0
+
         keys = pygame.key.get_pressed()
-        if not self.attacking: #stop moving if attacking
-            #movement input
+
+        if self.circular_menu.active:
+            self.direction.x = 0
+            self.direction.y = 0
             if keys[pygame.K_LEFT]:
-                self.direction.x = -1
-                self.status = 'left'
+                self.circular_menu.update(True, False)
             if keys[pygame.K_RIGHT]:
-                self.direction.x = 1
-                self.status = 'right'
-            if keys[pygame.K_UP]:
-                self.direction.y = -1
-                self.status = 'up'
-            if keys[pygame.K_DOWN]:
-                self.direction.y = 1
-                self.status = 'down'
+                self.circular_menu.update(False, True)
+        else:
+            self.direction.x = 0
+            self.direction.y = 0
+            keys = pygame.key.get_pressed()
+            if not self.attacking: #stop moving if attacking
+                #movement input
+                if keys[pygame.K_LEFT]:
+                    self.direction.x = -1
+                    self.status = 'left'
+                if keys[pygame.K_RIGHT]:
+                    self.direction.x = 1
+                    self.status = 'right'
+                if keys[pygame.K_UP]:
+                    self.direction.y = -1
+                    self.status = 'up'
+                if keys[pygame.K_DOWN]:
+                    self.direction.y = 1
+                    self.status = 'down'
 
-            #attack input
-            if keys[pygame.K_SPACE] and not self.attacking:
-                self.attacking = True
-                self.attack_time =  pygame.time.get_ticks()
-                self.create_attack()
+                #attack input
+                if keys[pygame.K_SPACE] and not self.attacking:
+                    self.attacking = True
+                    self.attack_time =  pygame.time.get_ticks()
+                    self.create_attack()
 
-            #magic input
-            if keys[pygame.K_LCTRL] and not self.attacking:
-                self.attacking = True
-                self.attack_time =  pygame.time.get_ticks()
-                print('magic')
+                #magic input
+                if keys[pygame.K_LCTRL] and not self.attacking:
+                    self.attacking = True
+                    self.attack_time =  pygame.time.get_ticks()
+                    print('magic')
 
-            if keys[pygame.K_RCTRL] and not self.attacking and self.can_switch_weapon:
-                self.can_switch_weapon = False
-                self.weapon_switch_time = pygame.time.get_ticks()
-                self.weapon_index += 1
-                if self.weapon_index >= len(weapon_data):
-                    self.weapon_index = 0
-                self.weapon = list(weapon_data.keys())[self.weapon_index]
-
+                if keys[pygame.K_RCTRL] and not self.attacking and self.can_switch_weapon:
+                    self.can_switch_weapon = False
+                    self.weapon_switch_time = pygame.time.get_ticks()
+                    self.weapon_index += 1
+                    if self.weapon_index >= len(weapon_data):
+                        self.weapon_index = 0
+                    self.weapon = list(weapon_data.keys())[self.weapon_index]
+        
+        if keys[pygame.K_TAB]:
+            if not self.circular_menu.active:
+                self.circular_menu.toggle()
+        else:
+            if self.circular_menu.active:
+                self.circular_menu.toggle()
+                selected_weapon = list(weapon_data.keys())[self.circular_menu.selected_index]
+                if selected_weapon != self.weapon:
+                    self.weapon_index = self.circular_menu.selected_index
+                    self.weapon = selected_weapon
         
     def cooldown(self):
         current_time = pygame.time.get_ticks()
@@ -168,3 +197,9 @@ class Player(pygame.sprite.Sprite):
         self.get_status()
         self.animate()
         self.move(self.speed)
+        self.circular_menu.center_pos = (self.rect.centerx, self.rect.centery)
+
+
+    def draw(self, surface):
+        super().draw(surface)
+        self.circular_menu.draw(surface)

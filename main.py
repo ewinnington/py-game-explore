@@ -20,9 +20,16 @@ class Game:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_TAB:
+                        self.level.player.circular_menu.toggle()
+                elif event.type == pygame.KEYUP:
+                    if event.key == pygame.K_TAB:
+                        self.level.player.circular_menu.toggle()
 
             self.screen.fill('dark green')
-            self.level.run()	
+            self.level.run()
+            self.level.player.circular_menu.draw(self.screen)
             pygame.display.update()
             self.clock.tick(FPS)
             
