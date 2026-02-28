@@ -28,11 +28,11 @@ Transforming the mini-POC into a full game with levels, enemy types, hero mechan
 - [x] Give enemies HP values (demon=2, bat=1, centipede segments=5)
 - [x] Different XP values per enemy type (demon=5, bat=3, centipede=8)
 
-### Phase 4: Pickup System [IN PROGRESS]
-- [ ] Rune pickups in world (spear, fire, ice, shadow) with glow effect
-- [ ] Collecting rune adds item to appropriate ring menu
-- [ ] Health pickup (heart/potion) restores HP
-- [ ] Pickups can be placed in level data or dropped by enemies
+### Phase 4: Pickup System [DONE]
+- [x] Rune pickups in world (spear, fire, ice, shadow) with glow effect
+- [x] Collecting rune adds item to appropriate ring menu
+- [x] Health pickup (heart/potion) restores HP
+- [x] Pickups placed in level with actual weapon/spell icons
 
 ### Phase 5: Game State & Level System [NOT STARTED]
 - [ ] Game state manager (title, gameplay, level_transition, game_over)
@@ -46,7 +46,11 @@ Transforming the mini-POC into a full game with levels, enemy types, hero mechan
 - [ ] On-screen objective display
 - [ ] Level completion screen with stats
 
+## Known Bugs (to fix)
+- [ ] Enemies can leave the play area (need boundary clamping)
+- [ ] Knockback can push player through walls (need post-knockback collision)
+
 ## Current Session State
-- **Working on:** Phase 4
-- **Last completed step:** Phase 3 - bat + centipede integrated and tested
-- **Notes:** All 3 enemy types working. Next: pickup system, then levels.
+- **Working on:** Phase 5
+- **Last completed step:** Phase 4 - pickups working
+- **Notes:** Phases 1-4 complete. Next: game state manager and level system.

@@ -13,6 +13,7 @@ from enemy_centipede import Centipede
 from magic import FireCone, IceBall, ShadowBlade
 from spawner import CaveSpawner
 from hud import HUD
+from pickup import RunePickup, HealthPickup
 
 class Level:
     def __init__(self):
@@ -24,6 +25,7 @@ class Level:
         self.obstacle_sprites = pygame.sprite.Group()
         self.enemy_sprites = pygame.sprite.Group()
         self.magic_sprites = pygame.sprite.Group()
+        self.pickup_sprites = pygame.sprite.Group()
 
         # attack sprites
         self.current_attack = None
@@ -118,6 +120,26 @@ class Level:
         # Centipede
         Centipede((600, 700), enemy_groups, self.obstacle_sprites, self.player, num_segments=5)
 
+        # --- Pickups ---
+        pickup_groups = [self.visible_sprites, self.pickup_sprites]
+        from magic import magic_data as _md
+
+        # Weapon rune: spear (use weapon graphic as icon)
+        RunePickup((250, 400), pickup_groups, 'spear',
+                   icon=weapon_data['spear']['graphic'])
+
+        # Magic runes scattered around the map (use spell icons)
+        RunePickup((500, 150), pickup_groups, 'fire_cone',
+                   icon=_md['fire_cone']['icon'])
+        RunePickup((750, 600), pickup_groups, 'ice_ball',
+                   icon=_md['ice_ball']['icon'])
+        RunePickup((200, 800), pickup_groups, 'shadow_blade',
+                   icon=_md['shadow_blade']['icon'])
+
+        # Health pickups
+        HealthPickup((450, 500), pickup_groups, heal_amount=20)
+        HealthPickup((650, 850), pickup_groups, heal_amount=20)
+
         # Cave spawner near the bottom of the map
         cave_x = 10 * TILESIZE   # column 10 → 640 px
         cave_y = 17 * TILESIZE   # row 17 → 1088 px  (near bottom)
@@ -160,11 +182,18 @@ class Level:
                         spell.kill()
                         break
 
+    def _check_pickup_collisions(self):
+        """Check if player walks over any pickups."""
+        for pickup in list(self.pickup_sprites):
+            if pickup.hitbox.colliderect(self.player.hitbox):
+                pickup.collect(self.player)
+
     def run(self):
         self.visible_sprites.custom_draw(self.player)
         self.visible_sprites.update()
         self._check_weapon_hits()
         self._check_magic_hits()
+        self._check_pickup_collisions()
 
         # Draw enemy notice indicators on top of sprites
         offset = self.visible_sprites.offset
