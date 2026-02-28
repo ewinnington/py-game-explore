@@ -159,10 +159,10 @@ def _orient(base_surf: pygame.Surface,
         return pygame.transform.flip(base_surf, False, True)
 
     # For left / right we rotate the canonical surface.
-    rotated = pygame.transform.rotate(base_surf, 90)  # CCW 90
-    if direction == "left":
+    rotated = pygame.transform.rotate(base_surf, 90)  # CCW 90 → tip points right
+    if direction == "right":
         return rotated
-    # direction == "right"
+    # direction == "left" → flip so tip points left
     return pygame.transform.flip(rotated, True, False)
 
 
