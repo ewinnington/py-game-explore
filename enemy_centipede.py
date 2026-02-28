@@ -4,6 +4,18 @@ import random
 from data import *
 
 
+# ── Centipede colour palette ──────────────────────────────────────
+_SEG_TAIL    = (90, 50, 30)       # Dark brown-red tail
+_SEG_HEAD    = (180, 50, 40)      # Crimson head
+_SEG_HI_ADD = (45, 35, 25)       # Highlight offset
+_BELLY       = (60, 100, 35)      # Poisonous green underbelly
+_LEG         = (50, 80, 25)       # Dark green legs
+_ANTENNA     = (120, 180, 70)     # Bright green antennae
+_EYE         = (255, 220, 50)     # Golden eyes
+_PUPIL       = (20, 10, 5)        # Near-black pupils
+_MANDIBLE    = (140, 40, 30)      # Dark red pincers
+
+
 class Centipede(pygame.sprite.Sprite):
     """Multi-segment centipede that gets shorter with each hit.
 
@@ -21,10 +33,12 @@ class Centipede(pygame.sprite.Sprite):
     DYING = 2
 
     ENEMY_TYPE = 'centipede'
-    CONTACT_DAMAGE = 6
-    XP_VALUE = 8  # more XP because it's tougher
+    CONTACT_DAMAGE = 8
+    XP_VALUE = 12
 
-    def __init__(self, pos, groups, obstacle_sprites, player, num_segments=5):
+    SEG_SIZE = 16  # pixels per segment
+
+    def __init__(self, pos, groups, obstacle_sprites, player, num_segments=7):
         super().__init__(groups)
 
         self.num_segments = num_segments
@@ -40,7 +54,7 @@ class Centipede(pygame.sprite.Sprite):
         self.pursue_speed = 3.5
         self.wave_phase = random.uniform(0, 6.28)
         self.wave_freq = 0.06
-        self.wave_amp = 2.0
+        self.wave_amp = 2.5
 
         # Segment trail (positions for drawing body segments)
         self.trail = [pygame.math.Vector2(pos) for _ in range(num_segments * 4)]
@@ -54,13 +68,13 @@ class Centipede(pygame.sprite.Sprite):
         # AI
         self.state = self.SLITHER
         self.state_start = pygame.time.get_ticks()
-        self.detection_radius = 160
+        self.detection_radius = 180
         self.slither_change_ms = 3000
         self.last_direction_change = pygame.time.get_ticks()
 
         # Death
         self.death_timer = 0
-        self.death_duration = 25
+        self.death_duration = 30
         self._hit_flash = 0
 
         # Animation
@@ -95,24 +109,18 @@ class Centipede(pygame.sprite.Sprite):
         now = pygame.time.get_ticks()
 
         if self.state == self.SLITHER:
-            # Random direction changes
             if now - self.last_direction_change > self.slither_change_ms:
                 angle = random.uniform(0, 2 * math.pi)
                 self.direction = pygame.math.Vector2(math.cos(angle), math.sin(angle))
                 self.last_direction_change = now
-
-            # Detect player
             if self._dist_to_player() < self.detection_radius:
                 self._enter_state(self.PURSUE)
 
         elif self.state == self.PURSUE:
-            # Steer toward player
             to_player = self._dir_to_player()
             self.direction += (to_player - self.direction) * 0.05
             if self.direction.length() > 0:
                 self.direction = self.direction.normalize()
-
-            # Lose interest if player is far
             if self._dist_to_player() > self.detection_radius * 2:
                 self._enter_state(self.SLITHER)
 
@@ -138,7 +146,6 @@ class Centipede(pygame.sprite.Sprite):
             self.death_timer = 0
             self.player.gain_xp(self.XP_VALUE, self.ENEMY_TYPE)
         else:
-            # Rebuild image with fewer segments
             self._rebuild_image()
 
     def check_player_collision(self):
@@ -161,30 +168,25 @@ class Centipede(pygame.sprite.Sprite):
         if self.direction.magnitude() != 0:
             self.direction = self.direction.normalize()
 
-        # Sinusoidal wave applied perpendicular to direction
         self.wave_phase += self.wave_freq
         perp = pygame.math.Vector2(-self.direction.y, self.direction.x)
         wave_offset = perp * math.sin(self.wave_phase) * self.wave_amp
 
         self.pos += self.direction * speed + wave_offset
 
-        # Update trail
         self.trail.insert(0, pygame.math.Vector2(self.pos))
         max_trail = self.num_segments * 4
         while len(self.trail) > max_trail:
             self.trail.pop()
 
-        # Collision with obstacles
         self.hitbox.center = (int(self.pos.x), int(self.pos.y))
         for sprite in self.obstacle_sprites:
             if sprite.hitbox.colliderect(self.hitbox):
-                # Bounce off
                 self.direction = -self.direction
                 self.pos += self.direction * speed * 2
                 self.hitbox.center = (int(self.pos.x), int(self.pos.y))
                 break
 
-        # Safety clamp to world boundaries
         margin = TILESIZE
         world_rect = pygame.Rect(margin, margin, 20 * TILESIZE - 2 * margin,
                                   19 * TILESIZE - 2 * margin)
@@ -197,65 +199,86 @@ class Centipede(pygame.sprite.Sprite):
     # Rendering
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _seg_color(t):
+        """Return (body, highlight) colours for segment at position t (0=tail, 1=head)."""
+        r = int(_SEG_TAIL[0] + (_SEG_HEAD[0] - _SEG_TAIL[0]) * t)
+        g = int(_SEG_TAIL[1] + (_SEG_HEAD[1] - _SEG_TAIL[1]) * t)
+        b = int(_SEG_TAIL[2] + (_SEG_HEAD[2] - _SEG_TAIL[2]) * t)
+        hr = min(255, r + _SEG_HI_ADD[0])
+        hg = min(255, g + _SEG_HI_ADD[1])
+        hb = min(255, b + _SEG_HI_ADD[2])
+        return (r, g, b), (hr, hg, hb)
+
     def _rebuild_image(self):
         """Rebuild the centipede surface based on current segment count."""
-        seg_size = 10
-        total_w = self.num_segments * seg_size + 12
-        total_h = seg_size + 12
+        S = self.SEG_SIZE
+        total_w = self.num_segments * S + 20
+        total_h = S + 20
         self.image = pygame.Surface((total_w, total_h), pygame.SRCALPHA)
-        self._draw_body(self.image, total_w, total_h)
+        self._draw_body_static(self.image, total_w, total_h)
 
-    def _draw_body(self, surf, w, h):
-        """Draw the centipede body onto the given surface."""
-        cx = w // 2
-        cy = h // 2
-        seg_size = 10
+    def _draw_body_static(self, surf, w, h):
+        """Draw a static centipede body (used for initial image)."""
+        cx, cy = w // 2, h // 2
+        S = self.SEG_SIZE
         n = self.num_segments
 
-        # Draw segments from tail to head
         for i in range(n):
             t = i / max(1, n - 1)
-            sx = cx - (n * seg_size // 2) + i * seg_size + seg_size // 2
+            sx = cx - (n * S // 2) + i * S + S // 2
+            body_c, hi_c = self._seg_color(t)
+            seg_r = int(S * 0.45 * (0.7 + 0.3 * t))
 
-            # Color gradient: darker tail, brighter head
-            r = int(80 + 120 * t)
-            g = int(140 + 60 * t)
-            b = int(40 + 30 * t)
+            # Shadow
+            pygame.draw.ellipse(surf, (0, 0, 0, 25),
+                                (sx - seg_r, cy + seg_r - 2, seg_r * 2, 6))
+            # Body
+            pygame.draw.circle(surf, body_c, (sx, cy), seg_r)
+            pygame.draw.circle(surf, hi_c, (sx, cy - 2), max(1, seg_r - 3))
+            # Belly stripe
+            pygame.draw.ellipse(surf, _BELLY,
+                                (sx - seg_r // 2, cy + 1, seg_r, seg_r // 2))
+            # Legs
+            leg_len = 7
+            pygame.draw.line(surf, _LEG,
+                             (sx - 3, cy + seg_r), (sx - 6, cy + seg_r + leg_len), 2)
+            pygame.draw.line(surf, _LEG,
+                             (sx + 3, cy + seg_r), (sx + 6, cy + seg_r + leg_len), 2)
 
-            # Body segment
-            seg_r = int(seg_size * 0.45 * (0.7 + 0.3 * t))
-            pygame.draw.circle(surf, (r, g, b), (sx, cy), seg_r)
-            # Highlight
-            pygame.draw.circle(surf, (min(255, r + 40), min(255, g + 30), min(255, b + 20)),
-                               (sx, cy - 1), max(1, seg_r - 2))
-
-            # Legs (tiny lines)
-            leg_len = 4
-            pygame.draw.line(surf, (60, 90, 30),
-                             (sx - 2, cy + seg_r), (sx - 4, cy + seg_r + leg_len), 1)
-            pygame.draw.line(surf, (60, 90, 30),
-                             (sx + 2, cy + seg_r), (sx + 4, cy + seg_r + leg_len), 1)
-
-        # Head details (on last segment)
+        # Head details
         if n > 0:
-            hx = cx - (n * seg_size // 2) + (n - 1) * seg_size + seg_size // 2
-            # Antennae
-            pygame.draw.line(surf, (100, 160, 60), (hx - 2, cy - 4), (hx - 5, cy - 9), 1)
-            pygame.draw.line(surf, (100, 160, 60), (hx + 2, cy - 4), (hx + 5, cy - 9), 1)
-            # Eyes
-            pygame.draw.circle(surf, (255, 200, 50), (hx - 2, cy - 1), 2)
-            pygame.draw.circle(surf, (255, 200, 50), (hx + 2, cy - 1), 2)
-            pygame.draw.circle(surf, (20, 10, 5), (hx - 2, cy - 1), 1)
-            pygame.draw.circle(surf, (20, 10, 5), (hx + 2, cy - 1), 1)
+            hx = cx - (n * S // 2) + (n - 1) * S + S // 2
+            self._draw_head(surf, hx, cy)
+
+    def _draw_head(self, surf, hx, hy):
+        """Draw head details: antennae, eyes, mandibles."""
+        # Antennae (longer, curving)
+        pygame.draw.line(surf, _ANTENNA, (hx - 3, hy - 6), (hx - 8, hy - 14), 2)
+        pygame.draw.line(surf, _ANTENNA, (hx + 3, hy - 6), (hx + 8, hy - 14), 2)
+        # Antenna tips
+        pygame.draw.circle(surf, _ANTENNA, (hx - 8, hy - 14), 2)
+        pygame.draw.circle(surf, _ANTENNA, (hx + 8, hy - 14), 2)
+
+        # Eyes (larger)
+        pygame.draw.circle(surf, _EYE, (hx - 4, hy - 2), 3)
+        pygame.draw.circle(surf, _EYE, (hx + 4, hy - 2), 3)
+        pygame.draw.circle(surf, _PUPIL, (hx - 4, hy - 1), 1)
+        pygame.draw.circle(surf, _PUPIL, (hx + 4, hy - 1), 1)
+
+        # Mandibles / pincers
+        pygame.draw.line(surf, _MANDIBLE, (hx - 3, hy + 3), (hx - 7, hy + 10), 2)
+        pygame.draw.line(surf, _MANDIBLE, (hx - 7, hy + 10), (hx - 4, hy + 8), 2)
+        pygame.draw.line(surf, _MANDIBLE, (hx + 3, hy + 3), (hx + 7, hy + 10), 2)
+        pygame.draw.line(surf, _MANDIBLE, (hx + 7, hy + 10), (hx + 4, hy + 8), 2)
 
     def _animate(self):
         self.frame_index += self.animation_speed
 
-        # Rebuild from trail to show slithering motion
-        seg_size = 10
+        S = self.SEG_SIZE
         n = self.num_segments
-        total_w = max(n * seg_size + 12, 24)
-        total_h = seg_size + 16
+        total_w = max(n * S + 20, 36)
+        total_h = S + 24
         surf = pygame.Surface((total_w, total_h), pygame.SRCALPHA)
 
         cx = total_w // 2
@@ -264,47 +287,42 @@ class Centipede(pygame.sprite.Sprite):
         # Draw segments using trail positions for waviness
         for i in range(n):
             t = i / max(1, n - 1)
-            # Use trail for wavy body positioning
             trail_idx = min(i * 3, len(self.trail) - 1)
             trail_pos = self.trail[trail_idx]
-            # Relative offset from current pos
             rel_x = trail_pos.x - self.pos.x
             rel_y = trail_pos.y - self.pos.y
             sx = cx + int(rel_x)
             sy = cy + int(rel_y)
 
-            # Color
-            r = int(80 + 120 * t)
-            g = int(140 + 60 * t)
-            b = int(40 + 30 * t)
-            seg_r = int(seg_size * 0.45 * (0.7 + 0.3 * t))
+            body_c, hi_c = self._seg_color(t)
+            seg_r = int(S * 0.45 * (0.7 + 0.3 * t))
 
-            pygame.draw.circle(surf, (r, g, b), (sx, sy), seg_r)
-            pygame.draw.circle(surf, (min(255, r + 40), min(255, g + 30), min(255, b + 20)),
-                               (sx, sy - 1), max(1, seg_r - 2))
+            # Shadow
+            pygame.draw.ellipse(surf, (0, 0, 0, 25),
+                                (sx - seg_r, sy + seg_r - 2, seg_r * 2, 6))
+            # Body
+            pygame.draw.circle(surf, body_c, (sx, sy), seg_r)
+            pygame.draw.circle(surf, hi_c, (sx, sy - 2), max(1, seg_r - 3))
+            # Belly stripe
+            pygame.draw.ellipse(surf, _BELLY,
+                                (sx - seg_r // 2, sy + 1, seg_r, seg_r // 2))
 
-            # Legs
-            leg_off = int(2 * math.sin(self.frame_index + i * 0.5))
-            pygame.draw.line(surf, (60, 90, 30),
-                             (sx - 2, sy + seg_r), (sx - 4 + leg_off, sy + seg_r + 4), 1)
-            pygame.draw.line(surf, (60, 90, 30),
-                             (sx + 2, sy + seg_r), (sx + 4 - leg_off, sy + seg_r + 4), 1)
+            # Animated legs
+            leg_off = int(3 * math.sin(self.frame_index + i * 0.5))
+            pygame.draw.line(surf, _LEG,
+                             (sx - 3, sy + seg_r), (sx - 6 + leg_off, sy + seg_r + 7), 2)
+            pygame.draw.line(surf, _LEG,
+                             (sx + 3, sy + seg_r), (sx + 6 - leg_off, sy + seg_r + 7), 2)
 
         # Head (first in trail = current position)
         if n > 0:
-            hx, hy = cx, cy
-            pygame.draw.line(surf, (100, 160, 60), (hx - 2, hy - 4), (hx - 5, hy - 9), 1)
-            pygame.draw.line(surf, (100, 160, 60), (hx + 2, hy - 4), (hx + 5, hy - 9), 1)
-            pygame.draw.circle(surf, (255, 200, 50), (hx - 2, hy - 1), 2)
-            pygame.draw.circle(surf, (255, 200, 50), (hx + 2, hy - 1), 2)
-            pygame.draw.circle(surf, (20, 10, 5), (hx - 2, hy - 1), 1)
-            pygame.draw.circle(surf, (20, 10, 5), (hx + 2, hy - 1), 1)
+            self._draw_head(surf, cx, cy)
 
         # Death effect
         if self.state == self.DYING:
-            t = self.death_timer / max(1, self.death_duration)
-            alpha = max(0, int(255 * (1 - t)))
-            scale = max(0.2, 1.0 - t * 0.5)
+            dt = self.death_timer / max(1, self.death_duration)
+            alpha = max(0, int(255 * (1 - dt)))
+            scale = max(0.2, 1.0 - dt * 0.5)
             w = max(1, int(surf.get_width() * scale))
             h = max(1, int(surf.get_height() * scale))
             surf = pygame.transform.scale(surf, (w, h))

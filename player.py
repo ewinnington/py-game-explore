@@ -6,10 +6,11 @@ from dual_ring_menu import DualRingMenu
 from magic import magic_data
 from sounds import SoundManager
 from player_sprite import build_player_animations, build_player_icon
+from weapon_sprites import make_weapon_icon
 
 weapon_data = {
-    'sword': { 'cooldown':100, 'damage':10, 'graphic': pygame.image.load(os.path.join('sprites','weapons','sword','full.png')) },
-    'spear': { 'cooldown':120, 'damage':10, 'graphic': pygame.image.load(os.path.join('sprites','weapons','spear','full.png')) },
+    'sword': { 'cooldown':100, 'damage':10, 'graphic': make_weapon_icon('sword') },
+    'spear': { 'cooldown':120, 'damage':10, 'graphic': make_weapon_icon('spear') },
 }
 
 
@@ -79,6 +80,8 @@ class Player(pygame.sprite.Sprite):
         self.death_duration = 90       # frames for death animation (~1.5s)
         self.kills = 0                 # total kill count
         self.kill_counts = {}          # per-type kill counts e.g. {'demon': 3}
+        self.armour = 0                # damage reduction (chainmail = 1)
+        self.has_chainmail = False     # whether chainmail has been picked up
 
         # --- Knockback (enemy bump) ---
         self.knockback_dir = pygame.math.Vector2(0, 0)
@@ -104,6 +107,7 @@ class Player(pygame.sprite.Sprite):
 
         # --- Gamepad ---
         self.joystick = None
+        self._prev_gp = {}  # previous frame button state for edge detection
         self._init_joystick()
 
     def _init_joystick(self):
@@ -185,9 +189,20 @@ class Player(pygame.sprite.Sprite):
         attack = btn(0)        # A = attack
         magic = btn(1)         # B = magic
         menu = btn(2)          # X = open menu
-        select = btn(3)        # Y = select in menu
-        pad_left = btn(4)      # L1 = navigate left / switch ring
-        pad_right = btn(5)     # R1 = navigate right / switch ring
+
+        # Edge-detect menu buttons (only fire on rising edge: was False, now True)
+        raw_select = btn(3)    # Y = select in menu
+        raw_left = btn(4)      # L1 = navigate left
+        raw_right = btn(5)     # R1 = navigate right
+
+        select = raw_select and not self._prev_gp.get(3, False)
+        pad_left = raw_left and not self._prev_gp.get(4, False)
+        pad_right = raw_right and not self._prev_gp.get(5, False)
+
+        # Store current state for next frame
+        self._prev_gp[3] = raw_select
+        self._prev_gp[4] = raw_left
+        self._prev_gp[5] = raw_right
 
         return move_x, move_y, attack, magic, menu, pad_left, pad_right, False, False, select
 
@@ -330,7 +345,8 @@ class Player(pygame.sprite.Sprite):
         """Reduce HP by amount. Called when enemy bumps player."""
         if self.knockback_invuln > 0 or not self.alive_flag:
             return
-        self.hp = max(0, self.hp - amount)
+        effective = max(1, amount - self.armour)
+        self.hp = max(0, self.hp - effective)
         SoundManager.get().play('player_hurt')
         if self.hp <= 0:
             self.alive_flag = False

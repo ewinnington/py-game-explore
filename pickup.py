@@ -158,3 +158,43 @@ class HealthPickup(Pickup):
         # Highlight
         pygame.draw.circle(surf, (255, 120, 130), (c - 3, c - 5), 2)
         return surf
+
+
+class ArmourPickup(Pickup):
+    """Chainmail armour that reduces all damage taken by 1."""
+
+    def __init__(self, pos, groups):
+        icon = self._make_chainmail_icon()
+        super().__init__(pos, groups, 'chainmail', icon, (170, 175, 190))
+
+    def collect(self, player):
+        if player.has_chainmail:
+            return False  # already wearing it
+        player.has_chainmail = True
+        player.armour = 1
+        self.collected = True
+        self.kill()
+        return True
+
+    @staticmethod
+    def _make_chainmail_icon():
+        """Small chainmail ring pattern icon."""
+        sz = 24
+        surf = pygame.Surface((sz, sz), pygame.SRCALPHA)
+        mail_col = (170, 175, 180)
+        mail_light = (210, 215, 220)
+        mail_dark = (120, 125, 130)
+        ring_r = 3
+        row = 0
+        y = 3
+        while y < sz - 2:
+            offset = ring_r if (row % 2) else 0
+            x = 3 + offset
+            while x < sz - 2:
+                pygame.draw.circle(surf, mail_col, (x, y), ring_r, 1)
+                pygame.draw.rect(surf, mail_light, (x - 1, y - 2, 1, 1))
+                pygame.draw.rect(surf, mail_dark, (x + 1, y + 1, 1, 1))
+                x += ring_r * 2
+            y += ring_r * 2 - 1
+            row += 1
+        return surf

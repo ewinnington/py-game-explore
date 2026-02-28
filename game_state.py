@@ -91,25 +91,35 @@ class GameState:
             self._crawl.update()
             self._crawl.draw(self.display_surface)
 
+        # Calculate fade alpha — once crawl starts, fade text to ~40% over 2s
+        if crawl_active:
+            crawl_elapsed = tick - self._title_enter_tick - 5000
+            fade_alpha = max(100, 255 - int(155 * min(1.0, crawl_elapsed / 2000.0)))
+        else:
+            fade_alpha = 255
+
         # Semi-transparent overlay behind title area for readability
         if crawl_active:
             overlay = pygame.Surface((WIDTH, 100), pygame.SRCALPHA)
-            overlay.fill((8, 6, 12, 180))
+            overlay.fill((8, 6, 12, int(180 * fade_alpha / 255)))
             self.display_surface.blit(overlay, (0, HEIGHT // 3 - 40))
 
         # Title
         title = self._title_font.render("DemoBlade", True, (255, 210, 60))
+        title.set_alpha(fade_alpha)
         self.display_surface.blit(title,
             title.get_rect(center=(WIDTH // 2, HEIGHT // 3)))
 
         # Subtitle
         sub = self._subtitle_font.render("A Secret of Mana Tribute", True, (180, 160, 120))
+        sub.set_alpha(fade_alpha)
         self.display_surface.blit(sub,
             sub.get_rect(center=(WIDTH // 2, HEIGHT // 3 + 50)))
 
         # Prompt (blinking)
         if (tick // 600) % 2 == 0:
             prompt = self._prompt_font.render("Press SPACE or A to begin", True, (200, 200, 180))
+            prompt.set_alpha(fade_alpha)
             self.display_surface.blit(prompt,
                 prompt.get_rect(center=(WIDTH // 2, HEIGHT * 2 // 3)))
 
@@ -121,11 +131,12 @@ class GameState:
         ]
         for i, h in enumerate(hints):
             ht = self._prompt_font.render(h, True, (120, 110, 100))
+            ht.set_alpha(fade_alpha)
             self.display_surface.blit(ht,
                 ht.get_rect(center=(WIDTH // 2, HEIGHT * 2 // 3 + 50 + i * 24)))
 
-        # Decorative border
-        self._draw_border((180, 150, 80))
+        # Decorative border (fades with text)
+        self._draw_border((180, 150, 80), fade_alpha)
 
         if self._confirm_pressed():
             self._start_level(0)
@@ -292,10 +303,18 @@ class GameState:
             return True
         return False
 
-    def _draw_border(self, color):
+    def _draw_border(self, color, alpha=255):
         """Decorative border around the screen."""
-        r = pygame.Rect(20, 20, WIDTH - 40, HEIGHT - 40)
-        pygame.draw.rect(self.display_surface, color, r, 2, border_radius=8)
-        # Corner accents
-        for cx, cy in [(28, 28), (WIDTH - 28, 28), (28, HEIGHT - 28), (WIDTH - 28, HEIGHT - 28)]:
-            pygame.draw.circle(self.display_surface, color, (cx, cy), 3)
+        if alpha < 255:
+            border_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            r = pygame.Rect(20, 20, WIDTH - 40, HEIGHT - 40)
+            c = (*color, alpha)
+            pygame.draw.rect(border_surf, c, r, 2, border_radius=8)
+            for cx, cy in [(28, 28), (WIDTH - 28, 28), (28, HEIGHT - 28), (WIDTH - 28, HEIGHT - 28)]:
+                pygame.draw.circle(border_surf, c, (cx, cy), 3)
+            self.display_surface.blit(border_surf, (0, 0))
+        else:
+            r = pygame.Rect(20, 20, WIDTH - 40, HEIGHT - 40)
+            pygame.draw.rect(self.display_surface, color, r, 2, border_radius=8)
+            for cx, cy in [(28, 28), (WIDTH - 28, 28), (28, HEIGHT - 28), (WIDTH - 28, HEIGHT - 28)]:
+                pygame.draw.circle(self.display_surface, color, (cx, cy), 3)

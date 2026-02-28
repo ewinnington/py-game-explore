@@ -13,9 +13,10 @@ from enemy_centipede import Centipede
 from magic import FireCone, IceBall, ShadowBlade, magic_data
 from spawner import CaveSpawner
 from hud import HUD
-from pickup import RunePickup, HealthPickup
+from pickup import RunePickup, HealthPickup, ArmourPickup
 from portal import Portal
 from sounds import SoundManager
+from tile_graphics import make_floor_surface, make_rock, make_grass_tuft, make_column, make_chainmail_stand
 
 # Map enemy type string to class
 _ENEMY_CLASSES = {
@@ -41,9 +42,13 @@ class Level:
         """
         self.display_surface = pygame.display.get_surface()
         self.config = level_config
+        self.theme = level_config.get('theme', 'meadow')
 
         # Sprite groups
-        self.visible_sprites = YSortCameraGroup(level_config.get('floor'))
+        self.visible_sprites = YSortCameraGroup(
+            floor_path=level_config.get('floor'),
+            theme=self.theme,
+        )
         self.obstacle_sprites = pygame.sprite.Group()
         self.enemy_sprites = pygame.sprite.Group()
         self.magic_sprites = pygame.sprite.Group()
@@ -90,17 +95,13 @@ class Level:
     def create_map(self):
         cfg = self.config
         csv_paths = cfg['map_csv']
+        theme = self.theme
 
         layout = {
             'boundary': import_csv_layout(csv_paths['boundary']),
             'rocks':    import_csv_layout(csv_paths['rocks']),
             'grass':    import_csv_layout(csv_paths['grass']),
             'object':   import_csv_layout(csv_paths['object']),
-        }
-
-        graphics = {
-            'grass':   import_folder(os.path.join('sprites', 'grass')),
-            'objects': import_folder(os.path.join('sprites', 'objects')),
         }
 
         for style, layer in layout.items():
@@ -112,31 +113,29 @@ class Level:
                         if style == 'boundary':
                             Tile((x, y), [self.obstacle_sprites], 'invisible')
                         if style == 'rocks':
-                            rocks_image = pygame.image.load(
-                                os.path.join('sprites', 'rock.png')).convert_alpha()
-                            rocks_image.set_colorkey(COLORKEY)
-                            Tile((x, y), [self.visible_sprites], 'rocks', rocks_image)
+                            rock_img = make_rock(theme)
+                            Tile((x, y), [self.visible_sprites], 'rocks', rock_img)
                         if style == 'grass':
-                            random_grass_image = random.choice(graphics['grass'])
+                            grass_img = make_grass_tuft(theme)
                             Tile((x, y), [self.visible_sprites, self.obstacle_sprites],
-                                 'grass', random_grass_image)
+                                 'grass', grass_img)
                         if style == 'object':
-                            object_image = graphics['objects'][int(col)]
-                            if int(col) == 1:
+                            col_val = int(col)
+                            if col_val == 1:
+                                col_img = make_column(theme)
                                 Tile((x, y),
                                      [self.visible_sprites, self.obstacle_sprites],
-                                     'sceneryObject', object_image)
+                                     'sceneryObject', col_img)
                             else:
+                                stand_img = make_chainmail_stand()
                                 Tile((x, y), [self.visible_sprites],
-                                     'object', object_image)
+                                     'object', stand_img)
 
         # --- Player ---
         if self._existing_player:
-            # Carry player from previous level
             self.player = self._existing_player
             self.player.rect.topleft = cfg['player_pos']
             self.player.hitbox.center = self.player.rect.center
-            # Re-add to new sprite groups
             self.player.add(self.visible_sprites)
             self.player.obstacle_sprites = self.obstacle_sprites
             self.player.create_attack = self.create_attack
@@ -158,23 +157,27 @@ class Level:
             cls = _ENEMY_CLASSES.get(etype, Enemy)
             if cls == Centipede:
                 cls(pos, enemy_groups, self.obstacle_sprites, self.player,
-                    num_segments=5)
+                    num_segments=7)
             else:
                 cls(pos, enemy_groups, self.obstacle_sprites, self.player)
 
         # --- Pickups ---
         pickup_groups = [self.visible_sprites, self.pickup_sprites]
         for ptype, pos in cfg.get('pickups', []):
+            clear_pos = self._find_clear_pos(pos)
             if ptype.startswith('rune_'):
                 rune_info = _RUNE_MAP.get(ptype)
                 if rune_info:
                     rune_type, icon_fn = rune_info
-                    # Skip runes the player already has
                     if self._existing_player and rune_type in self._existing_player.collected_runes:
                         continue
-                    RunePickup(pos, pickup_groups, rune_type, icon=icon_fn())
+                    RunePickup(clear_pos, pickup_groups, rune_type, icon=icon_fn())
             elif ptype == 'health':
-                HealthPickup(pos, pickup_groups, heal_amount=20)
+                HealthPickup(clear_pos, pickup_groups, heal_amount=20)
+            elif ptype == 'chainmail':
+                if self._existing_player and self._existing_player.has_chainmail:
+                    continue
+                ArmourPickup(clear_pos, pickup_groups)
 
         # --- Spawners ---
         for sp_cfg in cfg.get('spawners', []):
@@ -188,6 +191,20 @@ class Level:
                 max_alive=sp_cfg.get('max', 5),
             )
 
+    def _find_clear_pos(self, pos, margin=20):
+        """Return pos or nearest clear position that doesn't overlap obstacles."""
+        test = pygame.Rect(0, 0, 32, 32)
+        test.center = pos
+        if not any(test.colliderect(s.hitbox) for s in self.obstacle_sprites):
+            return pos
+        for dist in range(TILESIZE, TILESIZE * 5, TILESIZE // 2):
+            for dx, dy in [(dist, 0), (-dist, 0), (0, dist), (0, -dist),
+                           (dist, dist), (-dist, dist), (dist, -dist), (-dist, -dist)]:
+                test.center = (pos[0] + dx, pos[1] + dy)
+                if not any(test.colliderect(s.hitbox) for s in self.obstacle_sprites):
+                    return (pos[0] + dx, pos[1] + dy)
+        return pos
+
     # ------------------------------------------------------------------
     # Objective checking
     # ------------------------------------------------------------------
@@ -199,7 +216,6 @@ class Level:
         otype = obj.get('type', 'kill_all')
 
         if otype == 'kill_all':
-            # All non-spawner enemies dead and no spawners active
             alive = sum(1 for e in self.enemy_sprites if e.state != e.DYING)
             if alive == 0 and self.level_kills > 0:
                 self._complete_objective()
@@ -215,7 +231,6 @@ class Level:
         self.portal = Portal(portal_pos, [self.visible_sprites])
 
     def _check_portal(self):
-        """Returns True if player touches the portal."""
         if self.portal and self.portal.hitbox.colliderect(self.player.hitbox):
             return True
         return False
@@ -268,7 +283,7 @@ class Level:
         for pickup in list(self.pickup_sprites):
             if pickup.hitbox.colliderect(self.player.hitbox):
                 result = pickup.collect(self.player)
-                if result is not False:  # collected successfully
+                if result is not False:
                     SoundManager.get().play('pickup')
 
     # ------------------------------------------------------------------
@@ -276,10 +291,7 @@ class Level:
     # ------------------------------------------------------------------
 
     def run(self):
-        """Returns a string signal or None.
-        'next_level' - player entered portal
-        'player_dead' - player HP reached 0
-        """
+        """Returns a string signal or None."""
         self.visible_sprites.custom_draw(self.player)
         self.visible_sprites.update()
         self._check_weapon_hits()
@@ -287,21 +299,17 @@ class Level:
         self._check_pickup_collisions()
         self._check_objective()
 
-        # Check portal collision
         if self._check_portal():
             return 'next_level'
 
-        # Check player death
         if not self.player.alive_flag:
             if self.player.death_timer >= self.player.death_duration:
                 return 'player_dead'
 
-        # Draw enemy notice indicators
         offset = self.visible_sprites.offset
         for enemy in self.enemy_sprites:
             enemy.draw_notice_indicator(self.display_surface, offset)
 
-        # Draw ring menu
         menu = self.player.circular_menu
         if menu.active:
             screen_center = (
@@ -310,13 +318,8 @@ class Level:
             )
             menu.draw(self.display_surface, screen_center)
 
-        # HUD
         self.hud.draw(self.player)
-
-        # Objective display
         self._draw_objective()
-
-        # Level title (fades after 3s)
         self._draw_level_title()
 
         return None
@@ -337,13 +340,11 @@ class Level:
         text = self._obj_font.render(desc, True, color)
         x = WIDTH // 2 - text.get_width() // 2
         y = 10
-        # Background
         bg = pygame.Surface((text.get_width() + 16, text.get_height() + 8), pygame.SRCALPHA)
         bg.fill((0, 0, 0, 120))
         self.display_surface.blit(bg, (x - 8, y - 4))
         self.display_surface.blit(text, (x, y))
 
-        # Kill progress for kill_count objectives
         if obj.get('type') == 'kill_count' and not self.objective_complete:
             count = obj.get('count', 0)
             prog = self._obj_font.render(
@@ -368,15 +369,17 @@ class Level:
 
 
 class YSortCameraGroup(pygame.sprite.Group):
-    def __init__(self, floor_path=None):
+    def __init__(self, floor_path=None, theme='meadow'):
         super().__init__()
         self.display_surface = pygame.display.get_surface()
         self.half_height = self.display_surface.get_height() // 2
         self.half_width = self.display_surface.get_width() // 2
         self.offset = pygame.math.Vector2(0, 0)
 
-        floor = floor_path or os.path.join('sprites', 'landscape_grass.png')
-        self.floor_surf = pygame.image.load(floor).convert()
+        if floor_path:
+            self.floor_surf = pygame.image.load(floor_path).convert()
+        else:
+            self.floor_surf = make_floor_surface(theme, 20 * TILESIZE, 20 * TILESIZE)
         self.floor_rect = self.floor_surf.get_rect(topleft=(0, 0))
 
     def custom_draw(self, player):
