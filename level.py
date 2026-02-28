@@ -15,6 +15,7 @@ from spawner import CaveSpawner
 from hud import HUD
 from pickup import RunePickup, HealthPickup
 from portal import Portal
+from sounds import SoundManager
 
 # Map enemy type string to class
 _ENEMY_CLASSES = {
@@ -68,6 +69,7 @@ class Level:
 
     def create_attack(self):
         self.current_attack = Weapon(self.player, [self.visible_sprites])
+        SoundManager.get().play('sword_hit')
 
     def destroy_weapon(self):
         if self.current_attack:
@@ -77,6 +79,7 @@ class Level:
     def create_magic(self):
         key = self.player.magic
         groups = [self.visible_sprites, self.magic_sprites]
+        SoundManager.get().play('spell_cast')
         if key == 'fire_cone':
             FireCone(self.player, groups)
         elif key == 'ice_ball':
@@ -207,7 +210,7 @@ class Level:
 
     def _complete_objective(self):
         self.objective_complete = True
-        # Spawn exit portal
+        SoundManager.get().play('portal')
         portal_pos = self.config.get('portal_pos', (640, 360))
         self.portal = Portal(portal_pos, [self.visible_sprites])
 
@@ -224,6 +227,7 @@ class Level:
     def _check_weapon_hits(self):
         if not self.current_attack:
             return
+        snd = SoundManager.get()
         for enemy in list(self.enemy_sprites):
             if enemy.state == enemy.DYING:
                 continue
@@ -233,8 +237,12 @@ class Level:
                 enemy.take_hit(weapon_dmg)
                 if enemy.hp <= 0 and old_hp > 0:
                     self.level_kills += 1
+                    snd.play('enemy_death')
+                else:
+                    snd.play('enemy_hit')
 
     def _check_magic_hits(self):
+        snd = SoundManager.get()
         for spell in list(self.magic_sprites):
             for enemy in list(self.enemy_sprites):
                 if enemy.state == enemy.DYING:
@@ -248,6 +256,9 @@ class Level:
                     enemy.take_hit(dmg)
                     if enemy.hp <= 0 and old_hp > 0:
                         self.level_kills += 1
+                        snd.play('enemy_death')
+                    else:
+                        snd.play('enemy_hit')
                     spell.hit_enemies.add(id(enemy))
                     if not spell.piercing:
                         spell.kill()
@@ -256,7 +267,9 @@ class Level:
     def _check_pickup_collisions(self):
         for pickup in list(self.pickup_sprites):
             if pickup.hitbox.colliderect(self.player.hitbox):
-                pickup.collect(self.player)
+                result = pickup.collect(self.player)
+                if result is not False:  # collected successfully
+                    SoundManager.get().play('pickup')
 
     # ------------------------------------------------------------------
     # Run

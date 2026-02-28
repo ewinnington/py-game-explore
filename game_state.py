@@ -3,6 +3,7 @@ import math
 from data import WIDTH, HEIGHT, FPS
 from level import Level
 from level_data import LEVELS
+from sounds import SoundManager
 
 
 class GameState:
@@ -41,6 +42,7 @@ class GameState:
         self.level = Level(cfg, player=self.player)
         self.player = self.level.player
         self.state = self.GAMEPLAY
+        SoundManager.get().start_bgm()
 
     def update(self):
         """Call once per frame. Returns False to quit."""
@@ -115,8 +117,10 @@ class GameState:
                 self._transition_start = pygame.time.get_ticks()
                 self.state = self.LEVEL_TRANSITION
             else:
+                SoundManager.get().stop_bgm()
                 self.state = self.VICTORY
         elif signal == 'player_dead':
+            SoundManager.get().stop_bgm()
             self.state = self.GAME_OVER
 
         return True

@@ -4,6 +4,7 @@ from data import *
 from support import *
 from dual_ring_menu import DualRingMenu
 from magic import magic_data
+from sounds import SoundManager
 
 weapon_data = {
     'sword': { 'cooldown':100, 'damage':10, 'graphic': pygame.image.load(os.path.join('sprites','weapons','sword','full.png')) },
@@ -293,6 +294,7 @@ class Player(pygame.sprite.Sprite):
         if self.knockback_invuln > 0 or not self.alive_flag:
             return
         self.hp = max(0, self.hp - amount)
+        SoundManager.get().play('player_hurt')
         if self.hp <= 0:
             self.alive_flag = False
             self.death_timer = 0
@@ -336,6 +338,7 @@ class Player(pygame.sprite.Sprite):
 
     def _level_up(self):
         """Increase level, boost max HP and MP."""
+        SoundManager.get().play('level_up')
         self.xp -= self.xp_to_next
         self.level += 1
         self.xp_to_next = int(self.xp_to_next * 1.5)

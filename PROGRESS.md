@@ -54,12 +54,22 @@ Transforming the mini-POC into a full game with levels, enemy types, hero mechan
 - [ ] Enemies can leave the play area (need boundary clamping)
 - [ ] Knockback can push player through walls (need post-knockback collision)
 
-### Phase 7: Sound Effects [NOT STARTED]
-- [ ] Chiptune sound effects (attack, spell, pickup, enemy hit, enemy death, portal, level up)
-- [ ] Background music / ambient track
+### Phase 7: Sound Effects [DONE]
+- [x] Procedural chiptune SFX (sword_hit, spell_cast, pickup, enemy_hit, enemy_death,
+      player_hurt, level_up, portal, menu_open, menu_select)
+- [x] Looping chiptune BGM (square+triangle+noise channels)
+- [x] SoundManager singleton with init/play/start_bgm/stop_bgm
+- [x] All sounds generated via numpy — no external audio files
+- [x] Wired into: combat, pickups, portal, level transitions, menus
+
+### Phase 8: Update Player/Game Sprites [NOT STARTED]
+- [ ] Modernize player sprite to match procedural enemy quality
+- [ ] Update tile/object sprites
+
+### Phase 9: Gamepad Support [NOT STARTED]
+- [ ] Logitech USB gamepad input alongside keyboard
 
 ## Current Session State
-- **Working on:** Phase 7 (sound) + bug fixes
-- **Last completed step:** Phase 6 - all core gameplay complete
-- **Notes:** Phases 1-6 done. Game is playable end-to-end with 4 levels, 3 enemy types,
-  pickups, dual ring menu, objectives, and full game state flow.
+- **Working on:** Phase 8 (sprites) and Phase 9 (gamepad)
+- **Last completed step:** Phase 7 - sound system complete
+- **Notes:** Game fully playable with sound. Next: sprite refresh + gamepad input.

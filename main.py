@@ -1,6 +1,7 @@
 import pygame, sys
 from data import *
 from game_state import GameState
+from sounds import SoundManager
 
 class Game:
     def __init__(self):
@@ -8,6 +9,9 @@ class Game:
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption(CAPTION)
         self.clock = pygame.time.Clock()
+
+        # Initialize sounds
+        SoundManager.get().init()
 
         self.game_state = GameState()
 
